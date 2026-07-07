@@ -2,13 +2,88 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository Status
+## What this repository is
 
-This repository ("Cross-Domain-Toolkit") is in its initial state. It currently contains only a README.md and an MIT LICENSE — there is no source code, build system, test framework, or CI configuration yet.
+Cross-Domain-Toolkit is a collection of **portable, domain-general instruments**
+— each a clean-room abstraction of a field-specific tool the author built
+elsewhere, generalized so a researcher can instantiate it in a domain the
+original never anticipated. There is no single application; each top-level
+package stands alone.
 
-## What This Means for Working Here
+The unifying method across all three packages: **ground your reads before you
+trust them, record your refutations so you can't quietly rewrite them, and watch
+for the structural point where a system's alternate state stops existing.**
 
-- There are no build, lint, or test commands to run. Do not assume a language, framework, or package manager; ask the user or infer from their request when adding the first code.
-- When the first code is added, update this file with the chosen language/toolchain, how to build and test, and the project's architecture.
-- The default branch is `main`.
-- The project is MIT licensed (copyright JinnZ2).
+## Conventions (hold these when adding or editing code)
+
+- **stdlib-only Python 3.** No third-party dependencies, no build step, no
+  package manager. If a task seems to need a dependency, prefer a stdlib
+  implementation or ask first. This is a hard constraint the whole toolkit relies
+  on — it's what makes each package forkable and `model-update-resilient` in the
+  author's phrasing.
+- **The core never imports its plugins.** In `multi_substrate_calibration`, the
+  determinacy gate consumes a fixed contract and never imports a specific
+  substrate; in `cascade_regime_audit`, the detector takes six normalized signals
+  and never knows the domain. Keep this inversion — it's what makes them
+  plug-and-play. New domains live in `examples/`, not in the core module.
+- **Abstractions expose the pattern, not a domain.** Each package ships worked
+  `examples/` that map a real domain onto the abstract surface. When extending,
+  add an example rather than special-casing the core.
+- Each package is a Python package (`__init__.py` re-exports the public surface)
+  with `examples/` and `tests/` subpackages.
+
+## Layout
+
+| package | what it is | key entry points |
+|---|---|---|
+| `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (fusion + Lε decision) |
+| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`) |
+| `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`) |
+
+## Commands
+
+All stdlib; run from the repo root.
+
+```bash
+# run every test in the repo
+python -m unittest discover -p 'test_*.py'
+
+# run one package's tests
+python -m unittest cascade_regime_audit.tests.test_cascade_audit
+
+# run a single test case or method
+python -m unittest falsification_ledger.tests.test_ledger.TestProtocol
+python -m unittest multi_substrate_calibration.tests.test_multi_substrate.TestGate.test_confident_contradiction_drains_and_defers
+
+# run any example (they're runnable modules)
+python -m cascade_regime_audit.examples.institutional_fragility
+```
+
+## Design notes worth knowing before editing
+
+- **`multi_substrate_calibration`** distinguishes two substrate roles: `GROUND`
+  (sensorimotor read of the present) and `PREDICT` (cascade forecast). The gate
+  fuses GROUND reads into a state estimate and holds PREDICT reads *against* it —
+  a confident prediction that contradicts the ground drains determinacy rather
+  than biasing the estimate. Confidence is bound into a shared frame
+  (`bound = reliability * warp(native)`) before fusion so heterogeneous sensors
+  are commensurable. **Lε** is the final decision: `determinate iff determinacy ≥
+  1 − ε`.
+- **`falsification_ledger`** enforces one rule: *update the claim, never retune
+  the sim.* `Ledger.refute()` raises `RefutationError` unless the most recent
+  entry actually fell outside tolerance, so you can't advance the claim to fit
+  noise. The hash chain (`verify()`) makes any later edit to recorded history
+  detectable — that's what makes it an artifact rather than a notebook.
+- **`cascade_regime_audit`** keeps the *statistical* read (six signals →
+  aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
+  independent, because they fail in opposite directions. The `COMMITTED` regime
+  is the important one: signals go quiet *after* the alternate state is already
+  gone, so signals-alone would misread it as recovery.
+
+## Lineage (for fidelity when extending)
+
+The math and vocabulary trace to the author's other repos: `cascade_regime_audit.py`
+and `field_collapse.py` (`H_SPINODAL = 2/√27`) in `JinnZ2/JinnZ2`, the
+Kramers-escape `monoculture_collapse_predictor`, and the refutation-protocol
+modules in `JinnZ2/ai-human-audit-protocol`. Those are the sources of truth for
+the underlying models; this repo is their portable generalization.
