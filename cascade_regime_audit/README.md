@@ -74,7 +74,26 @@ print(result.regime.value, result.note)     # -> "cascade  ..."
 
 Two mapping helpers turn raw series into signals: `slowing_down_from_series`
 (lag-1 autocorrelation → S1) and `variance_inflation_from_series` (variance vs a
-baseline → S2).
+baseline → S2):
+
+```python
+from cascade_regime_audit import (
+    SignalReads, slowing_down_from_series, variance_inflation_from_series,
+)
+
+residuals = [0.10, 0.14, 0.19, 0.27, 0.38, 0.55]   # recovery getting slower
+baseline_var = 0.02                                 # variance in a calm epoch
+
+signals = SignalReads(
+    critical_slowing_down=slowing_down_from_series(residuals),
+    variance_inflation=variance_inflation_from_series(residuals, baseline_var),
+    # ...map the remaining four signals from your own observables
+)
+```
+
+`variance_inflation_from_series` maps the variance ratio (current / baseline)
+onto `[0, 1]` as `1 − 1/ratio`: `0` at baseline, `0.5` at 2×, `0.9` at 10×. Swap
+in a domain-specific calibration if you have one.
 
 ## Worked instantiations
 

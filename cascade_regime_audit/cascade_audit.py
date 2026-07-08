@@ -128,7 +128,11 @@ def _normalized_variance(series: Sequence[float], baseline_var: float) -> float:
         return 0.0
     mean = sum(series) / n
     var = sum((x - mean) ** 2 for x in series) / (n - 1)
-    # ratio of current to baseline variance, squashed into [0, 1]
+    # Map the variance ratio (current / baseline) onto [0, 1] with 1 - 1/ratio:
+    # at baseline (ratio = 1) pressure is 0; it rises as variance inflates and
+    # saturates toward 1 (ratio = 2 -> 0.5, ratio = 4 -> 0.75, ratio = 10 -> 0.9).
+    # This is a smooth, unitless stand-in for the variance-inflation early-warning
+    # signal; swap in a domain-specific calibration if you have one.
     ratio = var / baseline_var
     return max(0.0, min(1.0, 1.0 - 1.0 / ratio)) if ratio > 0 else 0.0
 
@@ -157,6 +161,21 @@ class CascadeAudit:
     def __init__(self, fire_threshold: float = 0.6, pressure_threshold: float = 0.5,
                  spinodal: float = H_SPINODAL,
                  weights: Optional[Dict[str, float]] = None) -> None:
+        for name, val in (("fire_threshold", fire_threshold),
+                          ("pressure_threshold", pressure_threshold)):
+            if not 0.0 <= val <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1], got {val}")
+        if spinodal <= 0.0:
+            raise ValueError(f"spinodal must be > 0, got {spinodal}")
+        if weights is not None:
+            unknown = set(weights) - set(SIGNAL_NAMES)
+            if unknown:
+                raise ValueError(
+                    f"unknown signal weights {sorted(unknown)}; "
+                    f"valid names are {list(SIGNAL_NAMES)}"
+                )
+            if sum(weights.get(n, 0.0) for n in SIGNAL_NAMES) <= 0.0:
+                raise ValueError("weights over the six signals must sum to > 0")
         self.fire_threshold = fire_threshold
         self.pressure_threshold = pressure_threshold
         self.spinodal = spinodal

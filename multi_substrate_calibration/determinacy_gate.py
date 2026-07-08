@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 from .substrate import BoundReading, Role
 
@@ -92,11 +92,24 @@ class DeterminacyGate:
     into a determinacy drain proportional to the disagreement.
     """
 
-    def __init__(self, epsilon: float = 0.1, predict_tolerance: float = 1.0) -> None:
+    def __init__(self, epsilon: float = 0.1, predict_tolerance: float = 1.0,
+                 bounds: Optional[Tuple[float, float]] = None) -> None:
         if not 0.0 < epsilon < 1.0:
             raise ValueError(f"epsilon must be in (0, 1), got {epsilon}")
+        if predict_tolerance <= 0.0:
+            raise ValueError(
+                f"predict_tolerance must be > 0, got {predict_tolerance}"
+            )
+        if bounds is not None:
+            lo, hi = bounds
+            if lo > hi:
+                raise ValueError(f"bounds must be (lo, hi) with lo <= hi, got {bounds}")
         self.epsilon = epsilon
         self.predict_tolerance = predict_tolerance
+        # Optional lower-layer physical constraint. A fused estimate that escapes
+        # these bounds is grounded in incoherent reads, so the gate DEFERs rather
+        # than reporting determinacy on an impossible state.
+        self.bounds = bounds
 
     def evaluate(self, reads: Sequence[BoundReading]) -> GateResult:
         ground = [r for r in reads if r.role is Role.GROUND]
@@ -114,6 +127,23 @@ class DeterminacyGate:
                 conflict=0.0,
             )
 
+        # --- Enforce unit commensurability before fusing. ---
+        # Fusing reads in different units silently produces a meaningless
+        # estimate. GROUND reads must agree on units, and any PREDICT read is
+        # compared against the ground on the same scale, so it must agree too.
+        ground_units = {r.reading.units for r in ground}
+        if len(ground_units) > 1:
+            raise ValueError(
+                f"GROUND reads are not commensurable: mixed units {sorted(ground_units)}"
+            )
+        (unit,) = tuple(ground_units)
+        stray = {r.reading.units for r in predict} - {unit}
+        if stray:
+            raise ValueError(
+                f"PREDICT reads in units {sorted(stray)} cannot be held against "
+                f"a GROUND state in {unit!r}"
+            )
+
         # --- Fuse the grounding layer (sensorimotor "what is"). ---
         state = _weighted_mean(
             [r.value for r in ground],
@@ -121,23 +151,40 @@ class DeterminacyGate:
         )
         ground_determinacy = _combine_independent([r.bound_confidence for r in ground])
 
+        # --- Lower-layer constraint: the fused state must be physically possible. ---
+        if self.bounds is not None and not (self.bounds[0] <= state <= self.bounds[1]):
+            return GateResult(
+                verdict=Verdict.DEFER,
+                state_estimate=state,
+                determinacy=0.0,
+                epsilon=self.epsilon,
+                reason=(
+                    f"fused GROUND state {state:.4g} escapes physical bounds "
+                    f"{self.bounds}; the reads are incoherent, not merely uncertain"
+                ),
+                ground_count=len(ground),
+                predict_count=len(predict),
+                conflict=0.0,
+            )
+
         # --- Score the prediction layer against the fused ground. ---
-        # A prediction that lands within predict_tolerance of the ground state
-        # corroborates it (small boost, capped). A prediction that lands outside
-        # drains determinacy in proportion to its own confidence and its distance.
+        # A PREDICT read is held *against* the ground, never fused into it. One
+        # that lands within predict_tolerance corroborates the ground and is
+        # allowed to pass without penalty -- but it does NOT add determinacy the
+        # ground did not itself earn (that would launder a forecast into an
+        # observation). One that lands outside drains determinacy in proportion
+        # to its own confidence and its distance.
         conflict = 0.0
-        agree_conf: List[float] = []
         for p in predict:
-            dist = abs(p.value - state) / self.predict_tolerance if self.predict_tolerance else 0.0
-            if dist <= 1.0:
-                agree_conf.append(p.bound_confidence * (1.0 - dist))
-            else:
+            dist = abs(p.value - state) / self.predict_tolerance
+            if dist > 1.0:
                 # saturating drain: far, confident contradictions hurt most
                 drain = p.bound_confidence * (1.0 - 1.0 / dist)
                 conflict = max(conflict, drain)
 
-        determinacy = _combine_independent([ground_determinacy, *agree_conf])
-        determinacy *= (1.0 - conflict)  # contradiction pulls the whole result down
+        # Determinacy is set by the grounding layer alone; predictions can only
+        # drain it, never inflate it.
+        determinacy = ground_determinacy * (1.0 - conflict)
 
         threshold = 1.0 - self.epsilon
         if determinacy >= threshold:
@@ -145,13 +192,17 @@ class DeterminacyGate:
             reason = "determinacy within epsilon of certainty"
         else:
             verdict = Verdict.DEFER
+            gap = threshold - determinacy
             if conflict > 0.0:
                 reason = (
                     "PREDICT read contradicts fused GROUND state "
-                    f"(conflict drain {conflict:.3f}); resolve before acting"
+                    f"(conflict drain {conflict:.3f}, gap {gap:.3f}); resolve before acting"
                 )
             else:
-                reason = "insufficient grounding; add GROUND reads or widen epsilon"
+                reason = (
+                    f"insufficient grounding (gap {gap:.3f}); "
+                    "add GROUND reads or widen epsilon"
+                )
 
         return GateResult(
             verdict=verdict,

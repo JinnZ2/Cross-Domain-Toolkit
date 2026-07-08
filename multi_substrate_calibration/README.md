@@ -48,10 +48,31 @@ commensurable: after binding, `0.9` from any substrate means the same thing —
   (confidence-weighted mean) and their bound confidences combine by a
   noisy-OR rule into a **determinacy score** — corroboration raises it, and no
   single weak read can force it down.
-- **PREDICT** reads are **not** averaged into the present. They are held against
-  the fused ground: a forecast that lands within tolerance corroborates it; a
-  confident forecast that *contradicts* it becomes a determinacy **drain**. This
-  is what stops a forecast from being laundered into an observation.
+- **PREDICT** reads are **not** averaged into the present, and they can only ever
+  *lower* determinacy, never raise it. They are held against the fused ground: a
+  forecast within `predict_tolerance` passes without penalty (it corroborates but
+  adds no determinacy the ground did not itself earn); a confident forecast that
+  *contradicts* the ground becomes a determinacy **drain**. This is what stops a
+  forecast from being laundered into an observation.
+
+`predict_tolerance` (default `1.0`) is the agree/drain boundary, expressed in the
+units of the ground state's own scale, and **must be > 0** — the gate rejects a
+non-positive value at construction. A PREDICT read within one tolerance-width of
+the fused ground agrees; beyond it, the drain grows with both the read's bound
+confidence and its distance.
+
+### Grounding guards (unit commensurability + physical bounds)
+
+Before it fuses anything, the gate enforces that the reads are actually
+groundable:
+
+- **Unit commensurability.** All GROUND reads must share `units`, and any PREDICT
+  read must match the ground's units — fusing `K` with `°C` silently produces a
+  meaningless estimate, so the gate raises `ValueError` rather than average them.
+- **Lower-layer bounds.** Pass `DeterminacyGate(bounds=(lo, hi))` and a fused
+  estimate that escapes the physically possible range forces a `DEFER` with an
+  explaining reason — the reads are *incoherent*, not merely uncertain, and no
+  amount of confidence should certify an impossible state.
 
 **Lε** then asks one question:
 
@@ -61,9 +82,9 @@ determinate  iff  determinacy ≥ 1 − ε
 
 `ε` is your tolerance for acting on incomplete grounding. Tight `ε` (0.02) =
 "act only when nearly certain"; loose `ε` (0.3) = "act on a working hypothesis."
-When indeterminate, Lε returns `DEFER` with a reason and the gap, telling you
-whether to gather more GROUND reads, resolve a GROUND/PREDICT conflict, or widen
-`ε`.
+When indeterminate, Lε returns `DEFER` with a reason and the gap (how far
+determinacy fell short of `1 − ε`), telling you whether to gather more GROUND
+reads, resolve a GROUND/PREDICT conflict, or widen `ε`.
 
 ## Adding a substrate (the entire integration surface)
 

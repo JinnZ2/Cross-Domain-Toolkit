@@ -12,6 +12,7 @@ from .ledger import (
     Observation,
     Prediction,
     RefutationError,
+    classify_falsifiability,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "Observation",
     "Prediction",
     "RefutationError",
+    "classify_falsifiability",
 ]

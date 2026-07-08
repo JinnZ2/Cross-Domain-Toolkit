@@ -12,6 +12,7 @@ from ..cascade_audit import (
     Regime,
     SignalReads,
     slowing_down_from_series,
+    variance_inflation_from_series,
 )
 
 
@@ -69,12 +70,41 @@ class TestRegimes(unittest.TestCase):
         self.assertAlmostEqual(audit.audit(sig, 0.1).pressure, 0.9)
 
 
+class TestConstruction(unittest.TestCase):
+    def test_out_of_range_thresholds_rejected(self):
+        with self.assertRaises(ValueError):
+            CascadeAudit(fire_threshold=1.5)
+        with self.assertRaises(ValueError):
+            CascadeAudit(pressure_threshold=-0.1)
+
+    def test_nonpositive_spinodal_rejected(self):
+        with self.assertRaises(ValueError):
+            CascadeAudit(spinodal=0.0)
+
+    def test_unknown_weight_key_rejected(self):
+        with self.assertRaises(ValueError):
+            CascadeAudit(weights={"vareince_inflation": 1.0})  # typo
+
+    def test_all_zero_weights_rejected(self):
+        with self.assertRaises(ValueError):
+            CascadeAudit(weights={n: 0.0 for n in SignalReads().as_dict()})
+
+
 class TestHelpers(unittest.TestCase):
     def test_slowing_down_high_for_persistent_series(self):
         rising = [1.0, 1.1, 1.15, 1.22, 1.3, 1.4]
         noisy = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0]
         self.assertGreater(slowing_down_from_series(rising),
                            slowing_down_from_series(noisy))
+
+    def test_variance_inflation_rises_with_variance(self):
+        baseline = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]  # var ~0.3
+        bvar = 0.3
+        calm = variance_inflation_from_series([0.5, 0.5, 0.5, 0.5], bvar)
+        wild = variance_inflation_from_series([-5.0, 5.0, -5.0, 5.0], bvar)
+        self.assertEqual(calm, 0.0)
+        self.assertGreater(wild, 0.5)
+        self.assertLessEqual(wild, 1.0)
 
 
 if __name__ == "__main__":

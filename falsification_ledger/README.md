@@ -31,11 +31,20 @@ chain and `verify()` returns `False`. The refutation history is *verifiable*,
 not asserted. That is exactly the property you want when the claims are about,
 say, how an AI system behaves.
 
+**Threat model — read this.** The chain is tamper-**evident** against edits to
+existing history, not tamper-**proof**: a party who can rewrite the whole file
+can recompute every hash from any point forward, and there is no signature or
+external anchor to stop them. For non-repudiation, sign the head hash
+(`led.entries[-1].hash`) with a key the author doesn't control, or periodically
+anchor it somewhere append-only outside the repo (a timestamping service, a
+commit in a separate audited repo). Within a single trusted working copy, the
+chain does its job: it catches accidental or after-the-fact edits.
+
 ## The structures
 
 | structure | role |
 |---|---|
-| `Claim` | statement + params + `version` + `parent` + `rationale` |
+| `Claim` | statement + params + `version` + `parent` + `rationale` + `refutation_set` + `extraordinary` |
 | `Prediction` | value + tolerance derived from a claim version (immutable) |
 | `Observation` | reality: what actually happened under a condition |
 | `Mismatch` | residual, tolerance, `refuted` flag |
@@ -59,6 +68,27 @@ if entry.mismatch.refuted:
 `led.to_json()` serializes the whole chain so you can commit the ledger itself as
 the record of what was claimed, when it broke, and how the claim changed.
 
+## Falsifiability guards
+
+A refutation ledger is only as honest as the claims it accepts. Three optional
+guards close the usual escape routes:
+
+- **Up-front refutation set.** `Claim(..., refutation_set=[...])` names the
+  observations that would refute the claim *before* you see the data.
+  `claim.is_falsifiable` and `classify_falsifiability(claim)` report whether a
+  claim commits to any. Open the ledger with `Ledger(..., strict_falsifiable=True)`
+  to *refuse* an unfalsifiable claim outright (a `RefutationError`), at
+  construction and at every `refute()`.
+- **Extraordinary claims, higher bar.** `Claim(..., extraordinary=True)` marks a
+  claim that overturns lower-layer knowledge; strict mode then requires **more
+  than one** refuting condition — a mechanical Sagan standard.
+- **Escape-hatch detector.** `led.escape_hatch_flag()` catches the pathology the
+  protocol most fears: a claim re-parameterized again and again to dodge every
+  refutation without ever surviving a clean observation. It returns a `flag`, the
+  `escape_hatch_rate`, and the offending versions; `led.survival_by_version()`
+  shows how many clean observations each version withstood. A high rate means the
+  *form* of the claim is wrong, not its parameters.
+
 ## Worked forks
 
 - `examples/physics_ledger.py` — projectile range; recovers the true `g`.
@@ -66,5 +96,8 @@ the record of what was claimed, when it broke, and how the claim changed.
   capacity `K`.
 - `examples/ai_behavior_ledger.py` — a model's refusal-rate threshold; the case
   the protocol most exists for.
+- `examples/falsifiability_gate.py` — the three guards end to end: a strict
+  ledger refusing a vague claim, and the escape-hatch detector catching a
+  linear claim that reality keeps refuting because reality is quadratic.
 
 Tests: `python -m unittest falsification_ledger.tests.test_ledger`

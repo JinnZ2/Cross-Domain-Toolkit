@@ -14,7 +14,7 @@ from __future__ import annotations
 from ..cascade_audit import CascadeAudit, SignalReads
 
 
-def read_signals(survey) -> SignalReads:
+def read_institution_signals(survey) -> SignalReads:
     return SignalReads(
         # decisions take longer to reverse after a shock (committees loop)
         critical_slowing_down=survey["reversal_lag"],
@@ -34,7 +34,7 @@ def read_signals(survey) -> SignalReads:
 def main():
     audit = CascadeAudit(fire_threshold=0.6, pressure_threshold=0.5)
 
-    healthy = read_signals({
+    healthy = read_institution_signals({
         "reversal_lag": 0.3, "volatility": 0.35, "narrative_skew": 0.4,
         "policy_flicker": 0.2, "messaging_lockstep_under_criticism": 0.3,
         "consolidation_of_voice": 0.35,
@@ -42,7 +42,7 @@ def main():
     r1 = audit.audit(healthy, h_eff=0.2)
     print("healthy   :", r1.regime.value, "| pressure", round(r1.pressure, 2))
 
-    stressed = read_signals({
+    stressed = read_institution_signals({
         "reversal_lag": 0.7, "volatility": 0.65, "narrative_skew": 0.7,
         "policy_flicker": 0.6, "messaging_lockstep_under_criticism": 0.85,
         "consolidation_of_voice": 0.6,
