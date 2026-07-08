@@ -61,6 +61,19 @@ non-positive value at construction. A PREDICT read within one tolerance-width of
 the fused ground agrees; beyond it, the drain grows with both the read's bound
 confidence and its distance.
 
+### Grounding guards (unit commensurability + physical bounds)
+
+Before it fuses anything, the gate enforces that the reads are actually
+groundable:
+
+- **Unit commensurability.** All GROUND reads must share `units`, and any PREDICT
+  read must match the ground's units — fusing `K` with `°C` silently produces a
+  meaningless estimate, so the gate raises `ValueError` rather than average them.
+- **Lower-layer bounds.** Pass `DeterminacyGate(bounds=(lo, hi))` and a fused
+  estimate that escapes the physically possible range forces a `DEFER` with an
+  explaining reason — the reads are *incoherent*, not merely uncertain, and no
+  amount of confidence should certify an impossible state.
+
 **Lε** then asks one question:
 
 ```

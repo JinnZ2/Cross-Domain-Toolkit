@@ -6,7 +6,7 @@ Run:  python -m unittest falsification_ledger.tests.test_ledger
 import json
 import unittest
 
-from ..ledger import Claim, Ledger, RefutationError
+from ..ledger import Claim, Ledger, RefutationError, classify_falsifiability
 
 
 def linear(params, condition):
@@ -96,6 +96,64 @@ class TestProtocol(unittest.TestCase):
         led = Ledger(linear, Claim("y = a x + b", params))
         params["a"] = 999.0  # mutate the dict we passed in
         self.assertEqual(led.claim.params["a"], 2.0)
+
+
+class TestFalsifiability(unittest.TestCase):
+    def test_classifier(self):
+        vague = Claim("vague", {"a": 1.0})
+        testable = Claim("testable", {"a": 1.0}, refutation_set=["obs>5 at x=2"])
+        self.assertFalse(vague.is_falsifiable)
+        self.assertTrue(testable.is_falsifiable)
+        self.assertFalse(classify_falsifiability(vague)["falsifiable"])
+        self.assertTrue(classify_falsifiability(testable)["falsifiable"])
+
+    def test_extraordinary_needs_more_than_one_condition(self):
+        thin = Claim("revolution", {"a": 1.0}, refutation_set=["one"], extraordinary=True)
+        thick = Claim("revolution", {"a": 1.0},
+                      refutation_set=["one", "two"], extraordinary=True)
+        self.assertFalse(classify_falsifiability(thin)["falsifiable"])
+        self.assertTrue(classify_falsifiability(thick)["falsifiable"])
+
+    def test_strict_mode_rejects_unfalsifiable_claim(self):
+        with self.assertRaises(RefutationError):
+            Ledger(linear, Claim("vague", {"a": 2.0, "b": 0.0}),
+                   strict_falsifiable=True)
+
+    def test_strict_mode_accepts_falsifiable_claim(self):
+        led = Ledger(linear, Claim("y = a x + b", {"a": 2.0, "b": 0.0},
+                                   refutation_set=["y != 6 at x=3"]),
+                     strict_falsifiable=True)
+        self.assertTrue(led.claim.is_falsifiable)
+
+    def test_refutation_set_propagates_across_refute(self):
+        led = Ledger(linear, Claim("y = a x + b", {"a": 2.0, "b": 0.0},
+                                   refutation_set=["y != 6 at x=3"]),
+                     strict_falsifiable=True)
+        led.record(3.0, observed=15.0, tolerance=0.5)
+        c2 = led.refute({"a": 5.0, "b": 0.0}, rationale="entry 0")
+        self.assertEqual(c2.refutation_set, ["y != 6 at x=3"])
+
+
+class TestEscapeHatch(unittest.TestCase):
+    def test_flags_repeated_thin_refutations(self):
+        led = Ledger(linear, Claim("y = a x + b", {"a": 1.0, "b": 0.0}))
+        for i in range(3):
+            led.record(2.0, observed=1e6, tolerance=0.5)  # always way off
+            led.refute({"a": float(i), "b": 0.0}, rationale=f"entry {i}")
+        flag = led.escape_hatch_flag()
+        self.assertTrue(flag["flag"])
+        self.assertEqual(flag["escape_hatch_rate"], 1.0)
+        self.assertEqual(flag["thin_survival_versions"], [1, 2, 3])
+
+    def test_no_flag_when_versions_survive(self):
+        led = Ledger(linear, Claim("y = a x + b", {"a": 2.0, "b": 0.0}))
+        led.record(3.0, observed=6.0, tolerance=0.5)   # survives
+        led.record(4.0, observed=8.0, tolerance=0.5)   # survives
+        led.record(5.0, observed=99.0, tolerance=0.5)  # refuted
+        led.refute({"a": 19.8, "b": 0.0}, rationale="entry 2")
+        flag = led.escape_hatch_flag()
+        self.assertFalse(flag["flag"])
+        self.assertEqual(led.survival_by_version()[1], 2)
 
 
 if __name__ == "__main__":

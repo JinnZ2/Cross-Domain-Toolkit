@@ -5,7 +5,14 @@ Run:  python -m unittest multi_substrate_calibration.tests.test_multi_substrate
 
 import unittest
 
-from ..substrate import Calibration, Role, Substrate, SubstrateReading, make_reading
+from ..substrate import (
+    BoundReading,
+    Calibration,
+    Role,
+    Substrate,
+    SubstrateReading,
+    make_reading,
+)
 from ..determinacy_gate import DeterminacyGate, Verdict
 
 
@@ -103,6 +110,40 @@ class TestGate(unittest.TestCase):
             [_Stub(10.0, 0.9).bound_read(), _Stub(20.0, 0.1).bound_read()]
         )
         self.assertLess(res.state_estimate, 15.0)
+
+
+class TestGrounding(unittest.TestCase):
+    """5.2 grounding: unit commensurability and lower-layer bounds."""
+
+    def test_mixed_ground_units_rejected(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        a = BoundReading(SubstrateReading(1.0, 0.9, Role.GROUND, "m", "K"), 0.9)
+        b = BoundReading(SubstrateReading(1.0, 0.9, Role.GROUND, "m", "C"), 0.9)
+        with self.assertRaises(ValueError):
+            gate.evaluate([a, b])
+
+    def test_predict_stray_units_rejected(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        g = BoundReading(SubstrateReading(1.0, 0.9, Role.GROUND, "m", "K"), 0.9)
+        p = BoundReading(SubstrateReading(1.0, 0.9, Role.PREDICT, "m", "dB"), 0.9)
+        with self.assertRaises(ValueError):
+            gate.evaluate([g, p])
+
+    def test_bounds_escape_defers(self):
+        gate = DeterminacyGate(epsilon=0.1, bounds=(0.0, 10.0))
+        g = BoundReading(SubstrateReading(50.0, 0.99, Role.GROUND, "m", "K"), 0.99)
+        res = gate.evaluate([g])
+        self.assertEqual(res.verdict, Verdict.DEFER)
+        self.assertIn("bounds", res.reason)
+
+    def test_bounds_within_is_fine(self):
+        gate = DeterminacyGate(epsilon=0.1, bounds=(0.0, 10.0))
+        g = BoundReading(SubstrateReading(5.0, 0.99, Role.GROUND, "m", "K"), 0.99)
+        self.assertEqual(gate.evaluate([g]).verdict, Verdict.DETERMINATE)
+
+    def test_inverted_bounds_rejected(self):
+        with self.assertRaises(ValueError):
+            DeterminacyGate(bounds=(10.0, 0.0))
 
 
 if __name__ == "__main__":

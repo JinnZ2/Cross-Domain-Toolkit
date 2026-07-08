@@ -7,13 +7,22 @@ running the code, not inferred._
 > **Resolution status (updated after fixes).** All of Section 1 (inconsistencies),
 > all of Section 3 (code audit), all of Section 2 (markdown gaps), and most of
 > Section 6 (discoverability) have been addressed in follow-up commits; the test
-> suite grew from 22 to 34 cases. Finding 3.3 was fixed with a defensive copy
+> suite grew from 22 to 46 cases. Finding 3.3 was fixed with a defensive copy
 > rather than `MappingProxyType` (the latter breaks `dataclasses.asdict`, which
-> the ledger's `digest()`/`to_json()` rely on — verified empirically). Still
-> open by design (larger changes, not yet done): the Section 4 structural
-> refactors beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6) and the
-> Section 5 AI-grounding features (logical-form extraction, unit enforcement,
-> scope/reference-class fields, refutation-set enumeration). Line numbers below
+> the ledger's `digest()`/`to_json()` rely on — verified empirically).
+>
+> **Section 5 — now largely implemented.** 5.2 grounding: the gate enforces unit
+> commensurability and optional physical `bounds` (a fused estimate outside them
+> DEFERs). 5.4 falsifiability: `Claim.refutation_set` + `is_falsifiable` +
+> `classify_falsifiability`, a `strict_falsifiable` ledger mode, an
+> `extraordinary`-claim higher bar, and an `escape_hatch_flag()` /
+> `survival_by_version()` refutation-velocity detector (see
+> `examples/falsifiability_gate.py`). Still open by design: 5.1 symbolic
+> logical-form extraction / solver connection, the 5.3 scope/reference-class
+> fields, and the meta-grounding "extraordinary" enforcement beyond the ledger.
+>
+> Still open (larger changes, not yet done): the Section 4 structural refactors
+> beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6). Line numbers below
 > are pre-fix and may have shifted. Section 6 topics still require a manual
 > GitHub setting.
 
@@ -273,7 +282,7 @@ _Treating the toolkit as an AI-grounding / claim-verification system
   # and a pluggable checker: Callable[[str], bool] the ledger can call before record()
   ```
 
-### 5.2 Grounding Problem — **PARTIALLY ADDRESSED**
+### 5.2 Grounding Problem — **PARTIALLY ADDRESSED** _(units + bounds now implemented; see banner)_
 - Units/dimensions checked: **partial.** `SubstrateReading.units` exists
   (`substrate.py:61`) but is a documentation string only — never validated or
   reconciled across fused reads. Two GROUND reads in different units fuse
@@ -297,7 +306,7 @@ _Treating the toolkit as an AI-grounding / claim-verification system
   `reference_class: str` to `Claim`; reject claims lacking them if a strict flag
   is set.
 
-### 5.4 Falsifiability Paradox — **PARTIALLY ADDRESSED**
+### 5.4 Falsifiability Paradox — **NOW ADDRESSED** _(refutation_set + classifier + strict mode + escape-hatch; see banner)_
 - Enumerate a refutation-observation set: **partial.** The ledger tests one
   observation at a time against a tolerance (`ledger.py:171-193`) but never asks
   the claim to _enumerate in advance_ what would refute it.

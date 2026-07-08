@@ -46,6 +46,14 @@ class Claim:
     `version` increments on each refutation. `parent` links to the version this
     one replaced (None for the first). `rationale` is why the update happened --
     it must cite the mismatch, never "to fit the data" in the hand-tuning sense.
+
+    `refutation_set` names, *in advance*, the observations that would refute the
+    claim -- the conditions you commit to testing before you see the data. A
+    claim that cannot name a single one is unfalsifiable (see `is_falsifiable`
+    and `classify_falsifiability`); the ledger can refuse to open on one in
+    strict mode. `extraordinary=True` marks a revolutionary claim that overturns
+    lower-layer knowledge; strict mode holds it to a higher bar (more refutation
+    conditions), a mechanical Sagan standard.
     """
 
     statement: str
@@ -54,13 +62,45 @@ class Claim:
     parent: Optional[int] = None
     rationale: str = "initial claim"
     created_at: float = field(default_factory=time.time)
+    refutation_set: List[Any] = field(default_factory=list)
+    extraordinary: bool = False
 
     def __post_init__(self) -> None:
-        # Defensive copy: a caller who keeps a reference to the dict they passed
-        # in must not be able to mutate a claim's params out from under a
-        # recorded entry (which would silently retune the sim). Recorded history
-        # is additionally protected by the hash chain.
+        # Defensive copies: a caller who keeps a reference to the dict/list they
+        # passed in must not be able to mutate a claim out from under a recorded
+        # entry (which would silently retune the sim). Recorded history is
+        # additionally protected by the hash chain.
         object.__setattr__(self, "params", dict(self.params))
+        object.__setattr__(self, "refutation_set", list(self.refutation_set))
+
+    @property
+    def is_falsifiable(self) -> bool:
+        """A claim is falsifiable iff it commits, up front, to at least one
+        observation that would refute it."""
+        return len(self.refutation_set) > 0
+
+
+def classify_falsifiability(claim: "Claim") -> Dict[str, Any]:
+    """Classify a claim as falsifiable or not, with a reason. A tiny, honest
+    heuristic -- it checks that the claim names refuting observations up front,
+    and (for extraordinary claims) that it names more than one."""
+    if not claim.is_falsifiable:
+        return {
+            "falsifiable": False,
+            "reason": "no refutation_set: the claim names nothing that would refute it",
+        }
+    if claim.extraordinary and len(claim.refutation_set) < 2:
+        return {
+            "falsifiable": False,
+            "reason": (
+                "extraordinary claim with a single refutation condition; an "
+                "extraordinary claim should expose more than one way to be wrong"
+            ),
+        }
+    return {
+        "falsifiable": True,
+        "reason": f"{len(claim.refutation_set)} refutation condition(s) declared",
+    }
 
 
 @dataclass(frozen=True)
@@ -141,13 +181,26 @@ class Ledger:
 
     GENESIS_HASH = "0" * 64
 
-    def __init__(self, kernel: Kernel, claim: Claim) -> None:
+    def __init__(self, kernel: Kernel, claim: Claim,
+                 strict_falsifiable: bool = False) -> None:
         if claim.version != 1 or claim.parent is not None:
             raise ValueError("initial claim must be version 1 with no parent")
+        self.strict_falsifiable = strict_falsifiable
+        self._require_falsifiable(claim)
         self._kernel = kernel
         self._claim = claim
         self._entries: List[LedgerEntry] = []
         self._claims: List[Claim] = [claim]
+
+    def _require_falsifiable(self, claim: Claim) -> None:
+        """In strict mode, refuse to work with an unfalsifiable claim. This is the
+        falsifiability gate: a claim that names nothing that would refute it (or
+        an extraordinary claim that names too little) cannot enter the ledger."""
+        if not self.strict_falsifiable:
+            return
+        verdict = classify_falsifiability(claim)
+        if not verdict["falsifiable"]:
+            raise RefutationError(f"unfalsifiable claim rejected: {verdict['reason']}")
 
     # --- reads ---
     @property
@@ -222,7 +275,11 @@ class Ledger:
             version=self._claim.version + 1,
             parent=self._claim.version,
             rationale=rationale,
+            # the falsification conditions persist across a parameter update
+            refutation_set=list(self._claim.refutation_set),
+            extraordinary=self._claim.extraordinary,
         )
+        self._require_falsifiable(new_claim)
         self._claim = new_claim
         self._claims.append(new_claim)
         return new_claim
@@ -240,6 +297,8 @@ class Ledger:
             parent=base.parent,
             rationale=rationale,
             created_at=base.created_at,
+            refutation_set=list(base.refutation_set),
+            extraordinary=base.extraordinary,
         )
         self._claim = revised
         self._claims[-1] = revised
@@ -255,6 +314,37 @@ class Ledger:
                 return False
             prev = e.hash
         return True
+
+    # --- escape-hatch detection (the falsifiability paradox in practice) ---
+    def survival_by_version(self) -> Dict[int, int]:
+        """How many within-tolerance observations each claim version survived
+        before it was superseded (or, for the current version, so far). A version
+        that keeps getting refuted after surviving 0 tests is being retuned to
+        dodge refutation rather than genuinely holding up."""
+        survival: Dict[int, int] = {c.version: 0 for c in self._claims}
+        for e in self._entries:
+            if e.mismatch.within_tolerance:
+                survival[e.claim.version] = survival.get(e.claim.version, 0) + 1
+        return survival
+
+    def escape_hatch_flag(self, min_survival: int = 1) -> Dict[str, Any]:
+        """Detect the escape-hatch pattern: a claim repeatedly superseded without
+        ever surviving `min_survival` clean observations. Returns a flag plus the
+        superseded versions that failed to clear the bar. High incidence means the
+        claim is being re-parameterized to escape every refutation -- the
+        practical face of the falsifiability paradox.
+        """
+        survival = self.survival_by_version()
+        superseded = [c.version for c in self._claims if c.version != self._claim.version]
+        thin = [v for v in superseded if survival.get(v, 0) < min_survival]
+        rate = (len(thin) / len(superseded)) if superseded else 0.0
+        return {
+            "flag": bool(superseded) and rate >= 0.5,
+            "superseded_versions": superseded,
+            "thin_survival_versions": thin,
+            "escape_hatch_rate": rate,
+            "min_survival": min_survival,
+        }
 
     # --- serialization: commit the ledger as data ---
     def to_json(self, indent: int = 2) -> str:

@@ -64,16 +64,23 @@ python -m cascade_regime_audit.examples.institutional_fragility
 - **`multi_substrate_calibration`** distinguishes two substrate roles: `GROUND`
   (sensorimotor read of the present) and `PREDICT` (cascade forecast). The gate
   fuses GROUND reads into a state estimate and holds PREDICT reads *against* it —
-  a confident prediction that contradicts the ground drains determinacy rather
-  than biasing the estimate. Confidence is bound into a shared frame
-  (`bound = reliability * warp(native)`) before fusion so heterogeneous sensors
-  are commensurable. **Lε** is the final decision: `determinate iff determinacy ≥
-  1 − ε`.
+  a confident prediction that contradicts the ground drains determinacy (a
+  PREDICT read can only ever lower determinacy, never inflate it). Confidence is
+  bound into a shared frame (`bound = reliability * warp(native)`) before fusion.
+  Before fusing, the gate enforces **unit commensurability** (GROUND reads must
+  share units; PREDICT reads must match) and optional **physical `bounds`** (a
+  fused estimate outside them forces `DEFER`). **Lε** is the final decision:
+  `determinate iff determinacy ≥ 1 − ε`.
 - **`falsification_ledger`** enforces one rule: *update the claim, never retune
   the sim.* `Ledger.refute()` raises `RefutationError` unless the most recent
   entry actually fell outside tolerance, so you can't advance the claim to fit
   noise. The hash chain (`verify()`) makes any later edit to recorded history
   detectable — that's what makes it an artifact rather than a notebook.
+  Falsifiability guards are opt-in: a `Claim.refutation_set` names what would
+  refute it up front, `strict_falsifiable=True` refuses unfalsifiable (or
+  under-committed `extraordinary`) claims, and `escape_hatch_flag()` /
+  `survival_by_version()` detect a claim being re-parameterized to dodge every
+  refutation.
 - **`cascade_regime_audit`** keeps the *statistical* read (six signals →
   aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
   independent, because they fail in opposite directions. The `COMMITTED` regime
