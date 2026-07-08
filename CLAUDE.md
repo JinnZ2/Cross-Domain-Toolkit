@@ -96,3 +96,37 @@ and `field_collapse.py` (`H_SPINODAL = 2/√27`) in
 [`JinnZ2/ai-human-audit-protocol`](https://github.com/JinnZ2/ai-human-audit-protocol).
 Those are the sources of truth for the underlying models; this repo is their
 portable generalization.
+and `field_collapse.py` (`H_SPINODAL = 2/√27`) in `JinnZ2/JinnZ2`, the
+Kramers-escape `monoculture_collapse_predictor`, and the refutation-protocol
+modules in `JinnZ2/ai-human-audit-protocol`. Those are the sources of truth for
+the underlying models; this repo is their portable generalization.
+
+
+Review this repository against its CLAUDE.md and produce REVIEW.md.
+Focus on:
+
+1. **Structural consistency with CLAUDE.md:**
+   - Are all three packages true Python packages with __init__.py re-exporting public surfaces?
+   - Do examples/ and tests/ subpackages exist for each?
+   - Is the "core never imports plugins" rule upheld across all modules? Flag any violation.
+   - Are there any imports of third-party libraries? (stdlib-only is a hard constraint.)
+
+2. **README & discoverability:**
+   - Does the README concisely explain what all three packages do, with one-line summaries?
+   - Missing: CITATION.cff, KEYWORDS.txt, repository topics, "Why This Matters" statement, license badge. Provide ready-to-paste snippets for each.
+   - Is the public API import example clear for all three entry points?
+
+3. **Obvious inconsistencies:**
+   - Duplicate or conflicting docstrings, mismatched function signatures, broken internal links.
+   - Inconsistent naming conventions across packages.
+   - Missing tests for documented entry points.
+
+4. **Documentation gaps:**
+   - Does each package have at least one worked example in examples/ that maps a real domain onto the abstract surface?
+   - Is the "refutation protocol" clearly described in falsification_ledger's README or module docstring?
+   - Are the six signals in cascade_regime_audit named and explained?
+
+5. **Repository topics suggestion:** 
+   Propose topics like: `falsifiability`, `scientific-audit`, `refutation`, `spinodal`, `sensor-fusion`, `determinacy`, `grounding`, `python-stdlib`.
+
+Keep sections concise. Output the full REVIEW.md.
