@@ -3,6 +3,7 @@
 Run:  python -m unittest falsification_ledger.tests.test_ledger
 """
 
+import json
 import unittest
 
 from ..ledger import Claim, Ledger, RefutationError
@@ -60,6 +61,41 @@ class TestProtocol(unittest.TestCase):
         pred = led.predict(3.0, tolerance=0.5)
         self.assertEqual(pred.value, 15.0)  # uses new params
         self.assertEqual(pred.claim_version, 2)
+
+    def test_restate_revises_statement_and_keeps_history_intact(self):
+        led = self._ledger()
+        led.record(3.0, observed=15.0, tolerance=0.5)
+        c = led.restate("y = a x + b (revised)", {"a": 5.0, "b": 0.0},
+                        rationale="entry 0: form was mis-stated")
+        self.assertEqual(c.version, 2)
+        self.assertEqual(c.parent, 1)
+        self.assertEqual(c.statement, "y = a x + b (revised)")
+        self.assertEqual(led.claim_history[-1].statement, "y = a x + b (revised)")
+        self.assertEqual(len(led.claim_history), 2)
+        self.assertTrue(led.verify())
+
+    def test_restate_requires_a_refutation(self):
+        led = self._ledger()
+        led.record(3.0, observed=6.0, tolerance=0.2)  # within tolerance
+        with self.assertRaises(RefutationError):
+            led.restate("new", {"a": 3.0, "b": 0.0}, rationale="no reason")
+
+    def test_to_json_round_trips_and_reflects_history(self):
+        led = self._ledger()
+        led.record((3.0), observed=15.0, tolerance=0.5)
+        led.refute({"a": 5.0, "b": 0.0}, rationale="entry 0")
+        led.record(2.0, observed=10.0, tolerance=0.5)
+        data = json.loads(led.to_json())
+        self.assertEqual(len(data["entries"]), 2)
+        self.assertEqual(len(data["claim_history"]), 2)
+        self.assertEqual(data["entries"][0]["hash"], led.entries[0].hash)
+        self.assertEqual(data["entries"][1]["prev_hash"], led.entries[0].hash)
+
+    def test_external_dict_mutation_does_not_alter_claim(self):
+        params = {"a": 2.0, "b": 0.0}
+        led = Ledger(linear, Claim("y = a x + b", params))
+        params["a"] = 999.0  # mutate the dict we passed in
+        self.assertEqual(led.claim.params["a"], 2.0)
 
 
 if __name__ == "__main__":

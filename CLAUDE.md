@@ -83,7 +83,9 @@ python -m cascade_regime_audit.examples.institutional_fragility
 ## Lineage (for fidelity when extending)
 
 The math and vocabulary trace to the author's other repos: `cascade_regime_audit.py`
-and `field_collapse.py` (`H_SPINODAL = 2/√27`) in `JinnZ2/JinnZ2`, the
-Kramers-escape `monoculture_collapse_predictor`, and the refutation-protocol
-modules in `JinnZ2/ai-human-audit-protocol`. Those are the sources of truth for
-the underlying models; this repo is their portable generalization.
+and `field_collapse.py` (`H_SPINODAL = 2/√27`) in
+[`JinnZ2/JinnZ2`](https://github.com/JinnZ2/JinnZ2), the Kramers-escape
+`monoculture_collapse_predictor`, and the refutation-protocol modules in
+[`JinnZ2/ai-human-audit-protocol`](https://github.com/JinnZ2/ai-human-audit-protocol).
+Those are the sources of truth for the underlying models; this repo is their
+portable generalization.

@@ -14,7 +14,7 @@ from __future__ import annotations
 from ..cascade_audit import CascadeAudit, SignalReads
 
 
-def read_signals(generation_stats) -> SignalReads:
+def read_model_signals(generation_stats) -> SignalReads:
     """Map training-telemetry onto the six signals. `generation_stats` is a dict
     of whatever the training loop already logs."""
     return SignalReads(
@@ -37,7 +37,7 @@ def main():
     audit = CascadeAudit(fire_threshold=0.6, pressure_threshold=0.5)
 
     # generation 3: stressed but real data still anchors the distribution
-    early = read_signals({
+    early = read_model_signals({
         "recovery_lag": 0.55, "logit_var_ratio": 0.6, "mode_skew": 0.5,
         "template_bimodality": 0.4, "confidence_on_contradiction": 0.7,
         "diversity_loss": 0.5,
@@ -48,7 +48,7 @@ def main():
     print("        ", r1.note)
 
     # generation 8: synthetic fraction past the spinodal; diversity well gone
-    late = read_signals({
+    late = read_model_signals({
         "recovery_lag": 0.8, "logit_var_ratio": 0.85, "mode_skew": 0.8,
         "template_bimodality": 0.75, "confidence_on_contradiction": 0.9,
         "diversity_loss": 0.85,

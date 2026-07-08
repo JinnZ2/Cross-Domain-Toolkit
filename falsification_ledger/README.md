@@ -31,6 +31,15 @@ chain and `verify()` returns `False`. The refutation history is *verifiable*,
 not asserted. That is exactly the property you want when the claims are about,
 say, how an AI system behaves.
 
+**Threat model — read this.** The chain is tamper-**evident** against edits to
+existing history, not tamper-**proof**: a party who can rewrite the whole file
+can recompute every hash from any point forward, and there is no signature or
+external anchor to stop them. For non-repudiation, sign the head hash
+(`led.entries[-1].hash`) with a key the author doesn't control, or periodically
+anchor it somewhere append-only outside the repo (a timestamping service, a
+commit in a separate audited repo). Within a single trusted working copy, the
+chain does its job: it catches accidental or after-the-fact edits.
+
 ## The structures
 
 | structure | role |

@@ -33,6 +33,14 @@ class TestContract(unittest.TestCase):
         proven = _Stub(1.0, 0.8, reliability=0.9)
         self.assertAlmostEqual(proven.bound_read().bound_confidence, 0.72)
 
+    def test_make_reading_carries_declared_fields_and_provenance(self):
+        s = _Stub(1.0, 0.5)
+        r = make_reading(s, 2.0, 0.5, provenance={"sensor": "abc"})
+        self.assertEqual(r.role, s.role)
+        self.assertEqual(r.modality, s.modality)
+        self.assertEqual(r.units, s.units)
+        self.assertEqual(r.provenance["sensor"], "abc")
+
     def test_role_mismatch_rejected(self):
         # A substrate that emits a reading whose role contradicts its declared
         # role must be rejected by bound_read().
@@ -53,6 +61,24 @@ class TestGate(unittest.TestCase):
         res = gate.evaluate([_Stub(5.0, 0.9, role=Role.PREDICT).bound_read()])
         self.assertEqual(res.verdict, Verdict.DEFER)
         self.assertIsNone(res.state_estimate)
+
+    def test_nonpositive_predict_tolerance_rejected(self):
+        with self.assertRaises(ValueError):
+            DeterminacyGate(epsilon=0.1, predict_tolerance=0.0)
+        with self.assertRaises(ValueError):
+            DeterminacyGate(epsilon=0.1, predict_tolerance=-2.0)
+
+    def test_agreeing_prediction_does_not_inflate_determinacy(self):
+        # An agreeing PREDICT read must not manufacture determinacy the ground
+        # did not earn (it may only avoid draining it).
+        gate = DeterminacyGate(epsilon=0.1, predict_tolerance=2.0)
+        ground_only = gate.evaluate([_Stub(5.0, 0.7).bound_read()])
+        with_agree = gate.evaluate(
+            [_Stub(5.0, 0.7).bound_read(),
+             _Stub(5.0, 0.95, role=Role.PREDICT).bound_read()]
+        )
+        self.assertAlmostEqual(with_agree.determinacy, ground_only.determinacy)
+        self.assertEqual(with_agree.conflict, 0.0)
 
     def test_corroboration_raises_determinacy(self):
         gate = DeterminacyGate(epsilon=0.1)

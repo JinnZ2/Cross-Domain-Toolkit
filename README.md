@@ -1,9 +1,42 @@
+---
+title: Cross-Domain-Toolkit
+description: Stdlib-only Python for claim falsification, sensor-fusion
+  calibration, and cascade/tipping-point detection.
+keywords: [falsification, early-warning-signals, tipping-points, sensor-fusion,
+  ai-grounding, spinodal]
+license: MIT
+language: Python
+---
+
 # Cross-Domain-Toolkit
+
+> **Cross-Domain-Toolkit** — stdlib-only Python instruments for **claim
+> falsification**, **sensor-fusion calibration**, and **cascade / tipping-point
+> (spinodal) detection**, portable across physics, ecology, and AI-behavior
+> domains.
 
 Portable, forkable instruments that carry a single method — ground your reads,
 record your refutations, watch for the cascade — across domains. Each package is
-self-contained, **stdlib-only Python 3**, and designed to be instantiated in a
-domain the author never anticipated: physics, ecology, AI behavior, institutions.
+self-contained, **stdlib-only Python 3 (≥ 3.7, no third-party dependencies)**,
+and designed to be instantiated in a domain the author never anticipated:
+physics, ecology, AI behavior, institutions.
+
+## Why this matters
+
+Systems fail quietly: a model trained on its own output loses diversity before
+its metrics move; an institution consolidates authority before it visibly breaks;
+a claim gets retuned to fit noise instead of being refuted. These tools make each
+of those moments **legible and on-the-record** — grounded reads, tamper-evident
+refutations, and a structural signal for when the alternative state is already
+gone.
+
+## Quick import
+
+```python
+from falsification_ledger import Claim, Ledger
+from multi_substrate_calibration import DeterminacyGate, Substrate, Role
+from cascade_regime_audit import CascadeAudit, SignalReads, H_SPINODAL
+```
 
 ## Packages
 
@@ -31,7 +64,8 @@ one control parameter.
 
 ## Running
 
-Everything is stdlib-only; no install step.
+Requires Python ≥ 3.7 (uses `from __future__ import annotations` and
+dataclasses). Everything is stdlib-only; no install step, no package manager.
 
 ```bash
 # tests
@@ -47,9 +81,14 @@ python -m cascade_regime_audit.examples.model_collapse
 
 These are clean-room, domain-general abstractions of instruments the author
 (JinnZ2) built inside specific projects — `cascade_regime_audit.py` and
-`field_collapse.py` (the `h* = 2/√27` spinodal), the Kramers-escape
-`monoculture_collapse_predictor`, and the refutation-protocol modules across the
-`ai-human-audit-protocol` work. The goal here is the *pattern*, not the original
-implementation: same method, any domain, someone else's data.
+`field_collapse.py` (the `h* = 2/√27` spinodal) in
+[`JinnZ2/JinnZ2`](https://github.com/JinnZ2/JinnZ2), the Kramers-escape
+[`monoculture_collapse_predictor`](https://github.com/JinnZ2/JinnZ2/blob/main/monoculture_collapse_predictor.py),
+and the refutation-protocol modules in
+[`JinnZ2/ai-human-audit-protocol`](https://github.com/JinnZ2/ai-human-audit-protocol).
+The goal here is the *pattern*, not the original implementation: same method, any
+domain, someone else's data.
 
-MIT licensed (copyright JinnZ2).
+## License
+
+MIT (copyright JinnZ2) — see [`LICENSE`](LICENSE). `SPDX-License-Identifier: MIT`.

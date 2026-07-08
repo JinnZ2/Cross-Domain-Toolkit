@@ -55,6 +55,13 @@ class Claim:
     rationale: str = "initial claim"
     created_at: float = field(default_factory=time.time)
 
+    def __post_init__(self) -> None:
+        # Defensive copy: a caller who keeps a reference to the dict they passed
+        # in must not be able to mutate a claim's params out from under a
+        # recorded entry (which would silently retune the sim). Recorded history
+        # is additionally protected by the hash chain.
+        object.__setattr__(self, "params", dict(self.params))
+
 
 @dataclass(frozen=True)
 class Prediction:

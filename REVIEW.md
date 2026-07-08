@@ -1,8 +1,21 @@
 # Repository Review — Cross-Domain-Toolkit
 
 _Reviewed at branch `claude/claude-md-docs-h2hwb5`. All line numbers refer to the
-files as they exist on that branch. Behavioural findings were confirmed by
+files as they existed **at review time**. Behavioural findings were confirmed by
 running the code, not inferred._
+
+> **Resolution status (updated after fixes).** All of Section 1 (inconsistencies),
+> all of Section 3 (code audit), all of Section 2 (markdown gaps), and most of
+> Section 6 (discoverability) have been addressed in follow-up commits; the test
+> suite grew from 22 to 34 cases. Finding 3.3 was fixed with a defensive copy
+> rather than `MappingProxyType` (the latter breaks `dataclasses.asdict`, which
+> the ledger's `digest()`/`to_json()` rely on — verified empirically). Still
+> open by design (larger changes, not yet done): the Section 4 structural
+> refactors beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6) and the
+> Section 5 AI-grounding features (logical-form extraction, unit enforcement,
+> scope/reference-class fields, refutation-set enumeration). Line numbers below
+> are pre-fix and may have shifted. Section 6 topics still require a manual
+> GitHub setting.
 
 ## Findings summary
 
