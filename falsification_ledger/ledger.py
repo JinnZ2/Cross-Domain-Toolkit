@@ -54,6 +54,15 @@ class Claim:
     strict mode. `extraordinary=True` marks a revolutionary claim that overturns
     lower-layer knowledge; strict mode holds it to a higher bar (more refutation
     conditions), a mechanical Sagan standard.
+
+    `scope` pins down *where the claim applies* along the canonical dimensions
+    (`temporal`, `spatial`, `ontological`), and `reference_class` names the
+    population the claim ranges over. Together they close the "true of what,
+    where, when?" ambiguity: "output scales linearly" is vague; "output scales
+    linearly (temporal: within one training run; spatial: this model family;
+    ontological: token-level logits) over the reference class 'prompts under 512
+    tokens'" is checkable. See `classify_specificity`; strict-scope mode refuses
+    a claim that leaves them blank.
     """
 
     statement: str
@@ -64,6 +73,8 @@ class Claim:
     created_at: float = field(default_factory=time.time)
     refutation_set: List[Any] = field(default_factory=list)
     extraordinary: bool = False
+    scope: Dict[str, str] = field(default_factory=dict)
+    reference_class: str = ""
 
     def __post_init__(self) -> None:
         # Defensive copies: a caller who keeps a reference to the dict/list they
@@ -72,12 +83,59 @@ class Claim:
         # additionally protected by the hash chain.
         object.__setattr__(self, "params", dict(self.params))
         object.__setattr__(self, "refutation_set", list(self.refutation_set))
+        object.__setattr__(self, "scope", dict(self.scope))
 
     @property
     def is_falsifiable(self) -> bool:
         """A claim is falsifiable iff it commits, up front, to at least one
         observation that would refute it."""
         return len(self.refutation_set) > 0
+
+    @property
+    def is_specific(self) -> bool:
+        """A claim is specific iff it names a reference class and at least one
+        scope dimension -- i.e. it says what it is about and where it applies."""
+        return bool(self.reference_class.strip()) and any(
+            v.strip() for v in self.scope.values()
+        )
+
+
+# The canonical dimensions along which a claim's scope should be pinned.
+SCOPE_DIMENSIONS = ("temporal", "spatial", "ontological")
+
+# Hedge words that quantify nothing. Their presence in a statement is advisory,
+# not disqualifying -- but a strict reviewer will want them replaced with numbers.
+_VAGUE_TERMS = (
+    "basically", "generally", "mostly", "roughly", "somewhat", "often",
+    "usually", "tends to", "significant", "substantial", "many", "few",
+    "large", "small", "soon", "eventually", "reasonable", "appropriate",
+)
+
+
+def find_vague_terms(statement: str) -> List[str]:
+    """Return the hedge words present in a claim statement. Advisory: these are
+    the terms a specific claim should quantify."""
+    low = statement.lower()
+    return [t for t in _VAGUE_TERMS if t in low]
+
+
+def classify_specificity(claim: "Claim") -> Dict[str, Any]:
+    """Classify whether a claim is semantically specific enough to test, with a
+    reason. Checks that it names a reference class and pins its scope; reports
+    missing scope dimensions and any vague terms as advisory detail."""
+    missing = [d for d in SCOPE_DIMENSIONS if not claim.scope.get(d, "").strip()]
+    vague = find_vague_terms(claim.statement)
+    if not claim.reference_class.strip():
+        return {"specific": False, "reason": "no reference_class: the claim does "
+                "not say what population it ranges over", "missing_scope": missing,
+                "vague_terms": vague}
+    if len(missing) == len(SCOPE_DIMENSIONS):
+        return {"specific": False, "reason": "scope is empty on every dimension "
+                f"{list(SCOPE_DIMENSIONS)}", "missing_scope": missing,
+                "vague_terms": vague}
+    return {"specific": True, "reason": f"reference class named; scope set on "
+            f"{[d for d in SCOPE_DIMENSIONS if d not in missing]}",
+            "missing_scope": missing, "vague_terms": vague}
 
 
 def classify_falsifiability(claim: "Claim") -> Dict[str, Any]:
@@ -182,11 +240,14 @@ class Ledger:
     GENESIS_HASH = "0" * 64
 
     def __init__(self, kernel: Kernel, claim: Claim,
-                 strict_falsifiable: bool = False) -> None:
+                 strict_falsifiable: bool = False,
+                 strict_scope: bool = False) -> None:
         if claim.version != 1 or claim.parent is not None:
             raise ValueError("initial claim must be version 1 with no parent")
         self.strict_falsifiable = strict_falsifiable
+        self.strict_scope = strict_scope
         self._require_falsifiable(claim)
+        self._require_specific(claim)
         self._kernel = kernel
         self._claim = claim
         self._entries: List[LedgerEntry] = []
@@ -201,6 +262,16 @@ class Ledger:
         verdict = classify_falsifiability(claim)
         if not verdict["falsifiable"]:
             raise RefutationError(f"unfalsifiable claim rejected: {verdict['reason']}")
+
+    def _require_specific(self, claim: Claim) -> None:
+        """In strict-scope mode, refuse a claim that leaves its reference class or
+        scope blank -- the semantic-ambiguity gate: 'true of what, where, when?'
+        must be answered before the claim can enter the ledger."""
+        if not self.strict_scope:
+            return
+        verdict = classify_specificity(claim)
+        if not verdict["specific"]:
+            raise RefutationError(f"under-specified claim rejected: {verdict['reason']}")
 
     # --- reads ---
     @property
@@ -275,11 +346,14 @@ class Ledger:
             version=self._claim.version + 1,
             parent=self._claim.version,
             rationale=rationale,
-            # the falsification conditions persist across a parameter update
+            # the falsification conditions and scope persist across a param update
             refutation_set=list(self._claim.refutation_set),
             extraordinary=self._claim.extraordinary,
+            scope=dict(self._claim.scope),
+            reference_class=self._claim.reference_class,
         )
         self._require_falsifiable(new_claim)
+        self._require_specific(new_claim)
         self._claim = new_claim
         self._claims.append(new_claim)
         return new_claim
@@ -299,7 +373,10 @@ class Ledger:
             created_at=base.created_at,
             refutation_set=list(base.refutation_set),
             extraordinary=base.extraordinary,
+            scope=dict(base.scope),
+            reference_class=base.reference_class,
         )
+        self._require_specific(revised)
         self._claim = revised
         self._claims[-1] = revised
         return revised

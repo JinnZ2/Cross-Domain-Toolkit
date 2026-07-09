@@ -5,6 +5,7 @@ Public surface:
 """
 
 from .ledger import (
+    SCOPE_DIMENSIONS,
     Claim,
     Ledger,
     LedgerEntry,
@@ -13,9 +14,12 @@ from .ledger import (
     Prediction,
     RefutationError,
     classify_falsifiability,
+    classify_specificity,
+    find_vague_terms,
 )
 
 __all__ = [
+    "SCOPE_DIMENSIONS",
     "Claim",
     "Ledger",
     "LedgerEntry",
@@ -24,4 +28,6 @@ __all__ = [
     "Prediction",
     "RefutationError",
     "classify_falsifiability",
+    "classify_specificity",
+    "find_vague_terms",
 ]

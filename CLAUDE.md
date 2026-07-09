@@ -80,7 +80,9 @@ python -m cascade_regime_audit.examples.institutional_fragility
   refute it up front, `strict_falsifiable=True` refuses unfalsifiable (or
   under-committed `extraordinary`) claims, and `escape_hatch_flag()` /
   `survival_by_version()` detect a claim being re-parameterized to dodge every
-  refutation.
+  refutation. Semantic-specificity guards mirror them: `Claim.scope` +
+  `reference_class` (with `classify_specificity`/`find_vague_terms`) and
+  `strict_scope=True` refuse a claim that doesn't say what/where/when it applies.
 - **`cascade_regime_audit`** keeps the *statistical* read (six signals →
   aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
   independent, because they fail in opposite directions. The `COMMITTED` regime

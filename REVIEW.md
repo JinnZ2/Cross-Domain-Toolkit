@@ -16,10 +16,10 @@ running the code, not inferred._
 > DEFERs). 5.4 falsifiability: `Claim.refutation_set` + `is_falsifiable` +
 > `classify_falsifiability`, a `strict_falsifiable` ledger mode, an
 > `extraordinary`-claim higher bar, and an `escape_hatch_flag()` /
-> `survival_by_version()` refutation-velocity detector (see
-> `examples/falsifiability_gate.py`). Still open by design: 5.1 symbolic
-> logical-form extraction / solver connection, the 5.3 scope/reference-class
-> fields, and the meta-grounding "extraordinary" enforcement beyond the ledger.
+> `survival_by_version()` refutation-velocity detector. 5.3 semantic ambiguity:
+> `Claim.scope` + `reference_class`, `classify_specificity` / `find_vague_terms`,
+> and a `strict_scope` ledger mode (see `examples/falsifiability_gate.py`). Still
+> open by design: 5.1 symbolic logical-form extraction / solver connection.
 >
 > Still open (larger changes, not yet done): the Section 4 structural refactors
 > beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6). Line numbers below
@@ -296,7 +296,7 @@ _Treating the toolkit as an AI-grounding / claim-verification system
   escapes. For revolutionary claims, add a `Claim.extraordinary: bool` that
   requires a higher refutation bar.
 
-### 5.3 Semantic Ambiguity — **MISSING**
+### 5.3 Semantic Ambiguity — **NOW ADDRESSED** _(scope + reference_class + vague-term detector + strict_scope; see banner)_
 - Vague terms quantified: **missing.** No mechanism forces "high", "fragile",
   etc. into numbers (the cascade signals are numeric, but the _claims_ are not).
 - Scope (temporal/spatial/ontological) explicit: **missing.** `Claim` carries no

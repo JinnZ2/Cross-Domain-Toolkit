@@ -44,7 +44,7 @@ chain does its job: it catches accidental or after-the-fact edits.
 
 | structure | role |
 |---|---|
-| `Claim` | statement + params + `version` + `parent` + `rationale` + `refutation_set` + `extraordinary` |
+| `Claim` | statement + params + `version` + `parent` + `rationale` + `refutation_set` + `extraordinary` + `scope` + `reference_class` |
 | `Prediction` | value + tolerance derived from a claim version (immutable) |
 | `Observation` | reality: what actually happened under a condition |
 | `Mismatch` | residual, tolerance, `refuted` flag |
@@ -88,6 +88,13 @@ guards close the usual escape routes:
   `escape_hatch_rate`, and the offending versions; `led.survival_by_version()`
   shows how many clean observations each version withstood. A high rate means the
   *form* of the claim is wrong, not its parameters.
+- **Semantic specificity.** `Claim(..., reference_class=..., scope={...})` answers
+  "true of what, where, when?": `reference_class` names the population the claim
+  ranges over, and `scope` pins it along the canonical dimensions (`temporal`,
+  `spatial`, `ontological`). `claim.is_specific` and `classify_specificity(claim)`
+  report on it (the latter also lists missing scope dimensions and any hedge words
+  via `find_vague_terms`). Open the ledger with `strict_scope=True` to refuse an
+  under-specified claim, at construction and at every update.
 
 ## Worked forks
 
