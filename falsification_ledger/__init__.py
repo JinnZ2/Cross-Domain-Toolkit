@@ -17,6 +17,7 @@ from .ledger import (
     classify_specificity,
     find_vague_terms,
 )
+from .symbolic import Checker, LogicalFormError, evaluate_logical_form
 
 __all__ = [
     "SCOPE_DIMENSIONS",
@@ -30,4 +31,7 @@ __all__ = [
     "classify_falsifiability",
     "classify_specificity",
     "find_vague_terms",
+    "Checker",
+    "LogicalFormError",
+    "evaluate_logical_form",
 ]

@@ -7,19 +7,21 @@ running the code, not inferred._
 > **Resolution status (updated after fixes).** All of Section 1 (inconsistencies),
 > all of Section 3 (code audit), all of Section 2 (markdown gaps), and most of
 > Section 6 (discoverability) have been addressed in follow-up commits; the test
-> suite grew from 22 to 46 cases. Finding 3.3 was fixed with a defensive copy
+> suite grew from 22 to 68 cases. Finding 3.3 was fixed with a defensive copy
 > rather than `MappingProxyType` (the latter breaks `dataclasses.asdict`, which
 > the ledger's `digest()`/`to_json()` rely on — verified empirically).
 >
-> **Section 5 — now largely implemented.** 5.2 grounding: the gate enforces unit
+> **Section 5 — now fully implemented.** 5.2 grounding: the gate enforces unit
 > commensurability and optional physical `bounds` (a fused estimate outside them
 > DEFERs). 5.4 falsifiability: `Claim.refutation_set` + `is_falsifiable` +
 > `classify_falsifiability`, a `strict_falsifiable` ledger mode, an
 > `extraordinary`-claim higher bar, and an `escape_hatch_flag()` /
 > `survival_by_version()` refutation-velocity detector. 5.3 semantic ambiguity:
 > `Claim.scope` + `reference_class`, `classify_specificity` / `find_vague_terms`,
-> and a `strict_scope` ledger mode (see `examples/falsifiability_gate.py`). Still
-> open by design: 5.1 symbolic logical-form extraction / solver connection.
+> and a `strict_scope` ledger mode. 5.1 symbolic/subsymbolic: `Claim.logical_form`
+> checked each record by a safe stdlib evaluator (`symbolic.py`, no `eval`) or a
+> pluggable `checker=` solver hook, with `entry.logical_ok` in the hash chain and
+> a `strict_symbolic` mode (see `examples/symbolic_form.py`).
 >
 > Still open (larger changes, not yet done): the Section 4 structural refactors
 > beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6). Line numbers below
@@ -34,7 +36,7 @@ running the code, not inferred._
 | 2. Markdown Information Gaps | 7 |
 | 3. Code Audit | 10 |
 | 4. Organizational Structure | 6 |
-| 5. Limitations Mitigation | 5 items (0 fully addressed, 4 partial, ~8 sub-items missing) |
+| 5. Limitations Mitigation | 5 items (at review: 0 fully addressed; **now: all 5 implemented** — see banner) |
 | 6. Discoverability & Crawler Optimization | 9 |
 
 ---
@@ -267,7 +269,7 @@ demonstrations, not the only home for mapping logic.
 _Treating the toolkit as an AI-grounding / claim-verification system
 (`falsification_ledger` + `multi_substrate_calibration` are the relevant cores)._
 
-### 5.1 Symbolic–Subsymbolic Gap — **MISSING**
+### 5.1 Symbolic–Subsymbolic Gap — **NOW ADDRESSED** _(logical_form + safe checker + pluggable solver hook; see banner)_
 - Explicit extraction of logical form: **missing.** `Claim.statement` is free
   text (`ledger.py:44`); nothing parses it.
 - Connection to symbolic solvers: **missing.**

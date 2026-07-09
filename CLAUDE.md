@@ -37,7 +37,7 @@ for the structural point where a system's alternate state stops existing.**
 | package | what it is | key entry points |
 |---|---|---|
 | `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (fusion + Lε decision) |
-| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`) |
+| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker) |
 | `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`) |
 
 ## Commands
@@ -83,6 +83,9 @@ python -m cascade_regime_audit.examples.institutional_fragility
   refutation. Semantic-specificity guards mirror them: `Claim.scope` +
   `reference_class` (with `classify_specificity`/`find_vague_terms`) and
   `strict_scope=True` refuse a claim that doesn't say what/where/when it applies.
+  A `Claim.logical_form` (checked each `record()` by a safe stdlib evaluator in
+  `symbolic.py`, or a plugged-in `checker=` solver) records `entry.logical_ok`
+  independently of the numeric tolerance; `strict_symbolic=True` requires a form.
 - **`cascade_regime_audit`** keeps the *statistical* read (six signals →
   aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
   independent, because they fail in opposite directions. The `COMMITTED` regime

@@ -182,6 +182,60 @@ class TestSpecificity(unittest.TestCase):
         self.assertEqual(c.scope["temporal"], "now")
 
 
+class TestSymbolic(unittest.TestCase):
+    def _kernel(self, params, condition):
+        return params["a"] * condition + params["b"]
+
+    def test_logical_form_checked_and_recorded(self):
+        led = Ledger(self._kernel, Claim(
+            "y = a x + b", {"a": 2.0, "b": 0.0},
+            logical_form="predicted == a*x + b and abs(residual) <= tol"))
+        e = led.record(3.0, observed=6.0, tolerance=0.5)
+        self.assertTrue(e.logical_ok)
+        self.assertTrue(led.verify())
+
+    def test_logical_form_can_fail_independently_of_tolerance(self):
+        # form asserts a is positive; params say otherwise, so the symbolic read
+        # fails even on a numerically perfect prediction.
+        led = Ledger(self._kernel, Claim(
+            "y = a x + b, a>0", {"a": -2.0, "b": 0.0}, logical_form="a > 0"))
+        e = led.record(3.0, observed=-6.0, tolerance=0.5)
+        self.assertTrue(e.mismatch.within_tolerance)  # numerically exact
+        self.assertFalse(e.logical_ok)                # but violates the form
+
+    def test_no_logical_form_leaves_logical_ok_none(self):
+        led = Ledger(self._kernel, Claim("y = a x + b", {"a": 2.0, "b": 0.0}))
+        e = led.record(3.0, observed=6.0, tolerance=0.5)
+        self.assertIsNone(e.logical_ok)
+
+    def test_strict_symbolic_requires_form(self):
+        with self.assertRaises(RefutationError):
+            Ledger(self._kernel, Claim("no form", {"a": 1.0, "b": 0.0}),
+                   strict_symbolic=True)
+
+    def test_pluggable_checker_is_used(self):
+        calls = []
+
+        def checker(form, binding):
+            calls.append((form, dict(binding)))
+            return False
+
+        led = Ledger(self._kernel, Claim(
+            "y = a x + b", {"a": 2.0, "b": 0.0}, logical_form="whatever"),
+            checker=checker)
+        e = led.record(3.0, observed=6.0, tolerance=0.5)
+        self.assertFalse(e.logical_ok)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "whatever")
+
+    def test_logical_form_propagates_across_refute(self):
+        led = Ledger(self._kernel, Claim(
+            "y = a x + b", {"a": 2.0, "b": 0.0}, logical_form="a > 0"))
+        led.record(3.0, observed=99.0, tolerance=0.5)
+        c2 = led.refute({"a": 33.0, "b": 0.0}, rationale="entry 0")
+        self.assertEqual(c2.logical_form, "a > 0")
+
+
 class TestEscapeHatch(unittest.TestCase):
     def test_flags_repeated_thin_refutations(self):
         led = Ledger(linear, Claim("y = a x + b", {"a": 1.0, "b": 0.0}))

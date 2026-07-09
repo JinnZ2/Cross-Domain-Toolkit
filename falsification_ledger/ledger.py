@@ -35,6 +35,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from .symbolic import Checker, LogicalFormError, evaluate_logical_form
+
 # A kernel is a pure function of (params, condition) -> predicted value.
 Kernel = Callable[[Dict[str, float], Any], float]
 
@@ -75,6 +77,7 @@ class Claim:
     extraordinary: bool = False
     scope: Dict[str, str] = field(default_factory=dict)
     reference_class: str = ""
+    logical_form: Optional[str] = None
 
     def __post_init__(self) -> None:
         # Defensive copies: a caller who keeps a reference to the dict/list they
@@ -90,6 +93,13 @@ class Claim:
         """A claim is falsifiable iff it commits, up front, to at least one
         observation that would refute it."""
         return len(self.refutation_set) > 0
+
+    @property
+    def has_logical_form(self) -> bool:
+        """A claim has a machine-checkable logical form iff it carries one -- the
+        bridge from the natural-language `statement` to something a checker (the
+        stdlib evaluator, or a plugged-in solver) can actually test."""
+        return bool(self.logical_form and self.logical_form.strip())
 
     @property
     def is_specific(self) -> bool:
@@ -207,6 +217,9 @@ class LedgerEntry:
     prev_hash: str
     hash: str = ""
     recorded_at: float = field(default_factory=time.time)
+    # Result of checking the claim's logical form against this observation:
+    # True/False if a logical form was present and checked, None otherwise.
+    logical_ok: Optional[bool] = None
 
     def digest(self) -> str:
         payload = {
@@ -215,6 +228,7 @@ class LedgerEntry:
             "prediction": asdict(self.prediction),
             "observation": asdict(self.observation),
             "mismatch": asdict(self.mismatch),
+            "logical_ok": self.logical_ok,
             "prev_hash": self.prev_hash,
             "recorded_at": self.recorded_at,
         }
@@ -241,13 +255,20 @@ class Ledger:
 
     def __init__(self, kernel: Kernel, claim: Claim,
                  strict_falsifiable: bool = False,
-                 strict_scope: bool = False) -> None:
+                 strict_scope: bool = False,
+                 strict_symbolic: bool = False,
+                 checker: Optional[Checker] = None) -> None:
         if claim.version != 1 or claim.parent is not None:
             raise ValueError("initial claim must be version 1 with no parent")
         self.strict_falsifiable = strict_falsifiable
         self.strict_scope = strict_scope
+        self.strict_symbolic = strict_symbolic
+        # The symbolic checker. Defaults to the safe stdlib evaluator; pass your
+        # own (e.g. a Z3 backend) to check richer logical forms.
+        self.checker: Checker = checker or evaluate_logical_form
         self._require_falsifiable(claim)
         self._require_specific(claim)
+        self._require_symbolic(claim)
         self._kernel = kernel
         self._claim = claim
         self._entries: List[LedgerEntry] = []
@@ -272,6 +293,25 @@ class Ledger:
         verdict = classify_specificity(claim)
         if not verdict["specific"]:
             raise RefutationError(f"under-specified claim rejected: {verdict['reason']}")
+
+    def _require_symbolic(self, claim: Claim) -> None:
+        """In strict-symbolic mode, refuse a claim with no machine-checkable
+        logical form -- the symbolic/subsymbolic gate: a natural-language
+        statement alone is not enough to check mechanically."""
+        if not self.strict_symbolic:
+            return
+        if not claim.has_logical_form:
+            raise RefutationError(
+                "claim without a logical_form rejected: strict_symbolic mode "
+                "requires a machine-checkable form"
+            )
+
+    def check_logical_form(self, binding: Dict[str, Any]) -> Optional[bool]:
+        """Run the current claim's logical form through the checker against a
+        variable binding. Returns None if the claim has no logical form."""
+        if not self._claim.has_logical_form:
+            return None
+        return bool(self.checker(self._claim.logical_form, binding))
 
     # --- reads ---
     @property
@@ -310,6 +350,12 @@ class Ledger:
             tolerance=tolerance,
             within_tolerance=abs(residual) <= tolerance,
         )
+        # Symbolic read: if the claim carries a logical form, check it against this
+        # observation (params + the numbers this row produced) and record the
+        # verdict alongside the numeric one. The two are independent -- a row can
+        # pass the tolerance but violate the form, or vice versa.
+        logical_ok = self.check_logical_form(self._binding(
+            condition, prediction.value, observation.value, residual, tolerance))
         prev_hash = self._entries[-1].hash if self._entries else self.GENESIS_HASH
         entry = LedgerEntry(
             index=len(self._entries),
@@ -318,10 +364,26 @@ class Ledger:
             observation=observation,
             mismatch=mismatch,
             prev_hash=prev_hash,
+            logical_ok=logical_ok,
         )
         entry.hash = entry.digest()
         self._entries.append(entry)
         return entry
+
+    def _binding(self, condition: Any, predicted: float, observed: float,
+                 residual: float, tolerance: float) -> Dict[str, Any]:
+        """Assemble the variable binding a logical form is checked against: the
+        claim's params, plus the numbers this row produced. `condition` is also
+        exposed as `x` when it is a bare scalar, for readable forms like
+        `predicted == a * x + b`."""
+        binding: Dict[str, Any] = dict(self._claim.params)
+        binding.update(
+            condition=condition, predicted=predicted, observed=observed,
+            residual=residual, tolerance=tolerance, tol=tolerance,
+        )
+        if isinstance(condition, (int, float)) and not isinstance(condition, bool):
+            binding["x"] = condition
+        return binding
 
     # --- the only legal way to move the claim ---
     def refute(self, new_params: Dict[str, float], rationale: str) -> Claim:
@@ -346,14 +408,17 @@ class Ledger:
             version=self._claim.version + 1,
             parent=self._claim.version,
             rationale=rationale,
-            # the falsification conditions and scope persist across a param update
+            # the falsification conditions, scope and logical form persist across
+            # a parameter update
             refutation_set=list(self._claim.refutation_set),
             extraordinary=self._claim.extraordinary,
             scope=dict(self._claim.scope),
             reference_class=self._claim.reference_class,
+            logical_form=self._claim.logical_form,
         )
         self._require_falsifiable(new_claim)
         self._require_specific(new_claim)
+        self._require_symbolic(new_claim)
         self._claim = new_claim
         self._claims.append(new_claim)
         return new_claim
@@ -375,6 +440,7 @@ class Ledger:
             extraordinary=base.extraordinary,
             scope=dict(base.scope),
             reference_class=base.reference_class,
+            logical_form=base.logical_form,
         )
         self._require_specific(revised)
         self._claim = revised
@@ -435,6 +501,7 @@ class Ledger:
                         "prediction": asdict(e.prediction),
                         "observation": asdict(e.observation),
                         "mismatch": asdict(e.mismatch),
+                        "logical_ok": e.logical_ok,
                         "prev_hash": e.prev_hash,
                         "hash": e.hash,
                         "recorded_at": e.recorded_at,
