@@ -44,7 +44,7 @@ chain does its job: it catches accidental or after-the-fact edits.
 
 | structure | role |
 |---|---|
-| `Claim` | statement + params + `version` + `parent` + `rationale` + `refutation_set` + `extraordinary` |
+| `Claim` | statement + params + `version` + `parent` + `rationale` + `refutation_set` + `extraordinary` + `scope` + `reference_class` + `logical_form` |
 | `Prediction` | value + tolerance derived from a claim version (immutable) |
 | `Observation` | reality: what actually happened under a condition |
 | `Mismatch` | residual, tolerance, `refuted` flag |
@@ -88,6 +88,27 @@ guards close the usual escape routes:
   `escape_hatch_rate`, and the offending versions; `led.survival_by_version()`
   shows how many clean observations each version withstood. A high rate means the
   *form* of the claim is wrong, not its parameters.
+- **Semantic specificity.** `Claim(..., reference_class=..., scope={...})` answers
+  "true of what, where, when?": `reference_class` names the population the claim
+  ranges over, and `scope` pins it along the canonical dimensions (`temporal`,
+  `spatial`, `ontological`). `claim.is_specific` and `classify_specificity(claim)`
+  report on it (the latter also lists missing scope dimensions and any hedge words
+  via `find_vague_terms`). Open the ledger with `strict_scope=True` to refuse an
+  under-specified claim, at construction and at every update.
+- **Machine-checkable logical form.** `Claim(..., logical_form="...")` bridges the
+  natural-language statement to something the ledger can *test*. Each `record()`
+  checks the form against that row's own numbers (params + `predicted` / `observed`
+  / `residual` / `tol`, with a scalar condition also bound as `x`) and stores the
+  verdict as `entry.logical_ok` — part of the hash chain, and **independent** of
+  the numeric tolerance, so a row can pass the tolerance yet violate the form
+  (e.g. the fit stays exact while the claimed positive slope goes negative). The
+  default checker is a safe stdlib evaluator (`evaluate_logical_form`) over a
+  restricted grammar — arithmetic, comparisons (chained ok), `and`/`or`/`not`,
+  and `abs`/`min`/`max` — that raises `LogicalFormError` on anything else (no
+  `eval`, no attribute/subscript/import access). To go beyond arithmetic, pass
+  your own solver: `Ledger(..., checker=my_z3_backend)` — `Checker` is just
+  `Callable[[str, dict], bool]`. `strict_symbolic=True` refuses a claim with no
+  logical form.
 
 ## Worked forks
 
@@ -99,5 +120,8 @@ guards close the usual escape routes:
 - `examples/falsifiability_gate.py` — the three guards end to end: a strict
   ledger refusing a vague claim, and the escape-hatch detector catching a
   linear claim that reality keeps refuting because reality is quadratic.
+- `examples/symbolic_form.py` — a machine-checkable `logical_form`; the symbolic
+  read (`logical_ok`) flags a violated positive-slope invariant even while the
+  numeric tolerance check is green.
 
 Tests: `python -m unittest falsification_ledger.tests.test_ledger`

@@ -37,7 +37,7 @@ for the structural point where a system's alternate state stops existing.**
 | package | what it is | key entry points |
 |---|---|---|
 | `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (fusion + Lε decision) |
-| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`) |
+| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker) |
 | `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`) |
 
 ## Commands
@@ -80,7 +80,12 @@ python -m cascade_regime_audit.examples.institutional_fragility
   refute it up front, `strict_falsifiable=True` refuses unfalsifiable (or
   under-committed `extraordinary`) claims, and `escape_hatch_flag()` /
   `survival_by_version()` detect a claim being re-parameterized to dodge every
-  refutation.
+  refutation. Semantic-specificity guards mirror them: `Claim.scope` +
+  `reference_class` (with `classify_specificity`/`find_vague_terms`) and
+  `strict_scope=True` refuse a claim that doesn't say what/where/when it applies.
+  A `Claim.logical_form` (checked each `record()` by a safe stdlib evaluator in
+  `symbolic.py`, or a plugged-in `checker=` solver) records `entry.logical_ok`
+  independently of the numeric tolerance; `strict_symbolic=True` requires a form.
 - **`cascade_regime_audit`** keeps the *statistical* read (six signals →
   aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
   independent, because they fail in opposite directions. The `COMMITTED` regime
@@ -96,10 +101,6 @@ and `field_collapse.py` (`H_SPINODAL = 2/√27`) in
 [`JinnZ2/ai-human-audit-protocol`](https://github.com/JinnZ2/ai-human-audit-protocol).
 Those are the sources of truth for the underlying models; this repo is their
 portable generalization.
-and `field_collapse.py` (`H_SPINODAL = 2/√27`) in `JinnZ2/JinnZ2`, the
-Kramers-escape `monoculture_collapse_predictor`, and the refutation-protocol
-modules in `JinnZ2/ai-human-audit-protocol`. Those are the sources of truth for
-the underlying models; this repo is their portable generalization.
 
 
 Review this repository against its CLAUDE.md and produce REVIEW.md.

@@ -15,7 +15,10 @@ Run:  python -m falsification_ledger.examples.falsifiability_gate
 
 from __future__ import annotations
 
-from ..ledger import Claim, Ledger, RefutationError, classify_falsifiability
+from ..ledger import (
+    Claim, Ledger, RefutationError,
+    classify_falsifiability, classify_specificity, find_vague_terms,
+)
 
 
 def kernel(params, condition):
@@ -23,22 +26,30 @@ def kernel(params, condition):
 
 
 def main():
-    # 1. An unfalsifiable claim is rejected by a strict ledger.
+    # 1. An unfalsifiable, under-specified claim is rejected by a strict ledger.
     vague = Claim("the system is basically fine", {"a": 1.0})
-    print("vague claim falsifiable? ", classify_falsifiability(vague))
+    print("vague claim falsifiable?", classify_falsifiability(vague)["falsifiable"])
+    print("vague claim specific?  ", classify_specificity(vague)["specific"],
+          "| hedge words:", find_vague_terms(vague.statement))
     try:
-        Ledger(kernel, vague, strict_falsifiable=True)
+        Ledger(kernel, vague, strict_falsifiable=True, strict_scope=True)
     except RefutationError as e:
         print("strict ledger refused it:", e)
 
-    # 2. A falsifiable claim opens fine; the refutation set persists across updates.
+    # 2. A falsifiable, scoped claim opens fine; both persist across updates.
     claim = Claim(
         "output scales linearly: y = a*x",
         {"a": 2.0},
         refutation_set=["y deviates > 0.5 from a*x at any tested x"],
+        reference_class="token-level logits, prompts under 512 tokens",
+        scope={"temporal": "within one training run",
+               "spatial": "this model family",
+               "ontological": "next-token logit magnitude"},
     )
-    led = Ledger(kernel, claim, strict_falsifiable=True)
-    print("\nfalsifiable claim opened. refutation_set:", led.claim.refutation_set)
+    led = Ledger(kernel, claim, strict_falsifiable=True, strict_scope=True)
+    print("\nfalsifiable + scoped claim opened.")
+    print("  refutation_set:", led.claim.refutation_set)
+    print("  reference_class:", led.claim.reference_class)
 
     # 3. Drive it toward the escape-hatch pattern: reality is quadratic, so a
     #    linear claim keeps getting refuted and re-parameterized without ever
