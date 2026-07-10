@@ -3,6 +3,7 @@
 Public surface:
     Substrate, SubstrateReading, BoundReading, Calibration, Role, make_reading
     DeterminacyGate, GateResult, Verdict
+    fusion: combine_independent, weighted_mean, fuse_ground, contradiction_drain
 """
 
 from .substrate import (
@@ -14,6 +15,12 @@ from .substrate import (
     make_reading,
 )
 from .determinacy_gate import DeterminacyGate, GateResult, Verdict
+from .fusion import (
+    combine_independent,
+    contradiction_drain,
+    fuse_ground,
+    weighted_mean,
+)
 
 __all__ = [
     "BoundReading",
@@ -25,4 +32,8 @@ __all__ = [
     "DeterminacyGate",
     "GateResult",
     "Verdict",
+    "combine_independent",
+    "contradiction_drain",
+    "fuse_ground",
+    "weighted_mean",
 ]

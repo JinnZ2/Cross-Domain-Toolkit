@@ -72,9 +72,13 @@ result = audit.audit(signals, h_eff=0.45)   # h_eff past H_SPINODAL
 print(result.regime.value, result.note)     # -> "cascade  ..."
 ```
 
-Two mapping helpers turn raw series into signals: `slowing_down_from_series`
-(lag-1 autocorrelation → S1) and `variance_inflation_from_series` (variance vs a
-baseline → S2):
+Reference mappers turn a raw series into signals — they live in
+[`mappers.py`](mappers.py) (re-exported from the package root) and are tested
+independently of the detector: `slowing_down_from_series` (lag-1 autocorrelation
+→ S1), `variance_inflation_from_series` (variance vs a baseline → S2), plus
+`lag1_autocorr`, `normalized_variance`, `abs_skew`, and
+`coefficient_of_variation`. They're optional — map your own observables however
+you like — but each returns a value already normalized to `[0, 1]`:
 
 ```python
 from cascade_regime_audit import (

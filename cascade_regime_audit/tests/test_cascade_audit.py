@@ -11,6 +11,8 @@ from ..cascade_audit import (
     H_SPINODAL,
     Regime,
     SignalReads,
+)
+from ..mappers import (
     slowing_down_from_series,
     variance_inflation_from_series,
 )

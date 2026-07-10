@@ -23,10 +23,15 @@ running the code, not inferred._
 > pluggable `checker=` solver hook, with `entry.logical_ok` in the hash chain and
 > a `strict_symbolic` mode (see `examples/symbolic_form.py`).
 >
-> Still open (larger changes, not yet done): the Section 4 structural refactors
-> beyond `CONTRIBUTING.md`/`Makefile` (4.1, 4.3, 4.4, 4.6). Line numbers below
-> are pre-fix and may have shifted. Section 6 topics still require a manual
-> GitHub setting.
+> **Section 4 — now implemented.** 4.1 fusion math extracted to
+> `multi_substrate_calibration/fusion.py` (gate reads as fuse→decide); 4.2
+> `Makefile`; 4.3 shared `docs/METHOD.md` (linked from the README); 4.4 `py.typed`
+> markers on all three packages; 4.5 `CONTRIBUTING.md`; 4.6 reference mappers
+> extracted to `cascade_regime_audit/mappers.py` (with `abs_skew` /
+> `coefficient_of_variation` added), examples left as thin drivers. The public
+> API is unchanged (backward-compatible re-exports). Line numbers below are
+> pre-fix and may have shifted. The only remaining review item is Section 6
+> repository topics, which require a manual GitHub setting.
 
 ## Findings summary
 
@@ -224,6 +229,8 @@ safe. The only "security-adjacent" concern is the ledger threat model
 ---
 
 ## 4. Organizational Structure Suggestions
+
+_All items below are now implemented — see the resolution banner at the top._
 
 **4.1 — Split `multi_substrate_calibration` fusion math out of the gate.** The
 `_combine_independent` / `_weighted_mean` helpers plus the PREDICT scoring in
