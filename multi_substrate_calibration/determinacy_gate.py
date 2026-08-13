@@ -9,7 +9,10 @@ TWO GROUNDING LAYERS
 --------------------
 GROUND reads (sensorimotor "what is") are fused into a single present-state
 estimate with a confidence-weighted mean; their confidences combine into a
-determinacy score.
+determinacy score. Reads that declare a shared `correlation_group` are collapsed
+to one effective read first, because corroboration only counts when the
+corroborating read could have failed separately -- two probes on one power rail
+are one read, however many times you poll them.
 
 PREDICT reads (cascade "what will be") are NOT fused into the present. They are
 held up against the fused GROUND state and scored by agreement. A confident
@@ -36,7 +39,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Sequence, Tuple
 
-from .fusion import contradiction_drain, fuse_ground
+from .fusion import collapse_correlated, contradiction_drain, fuse_ground
 from .substrate import BoundReading, Role
 
 
@@ -55,11 +58,20 @@ class GateResult:
     ground_count: int
     predict_count: int
     conflict: float                  # 0 = predictions agree with ground, 1 = max drain
+    # GROUND reads left after collapsing shared error sources -- the number of
+    # genuinely independent reads the determinacy was actually earned from. When
+    # this is below ground_count, some reads were corroborating themselves.
+    effective_ground_count: int = 0
 
     @property
     def gap(self) -> float:
         """How far determinacy sits below the (1 - epsilon) threshold. 0 if met."""
         return max(0.0, (1.0 - self.epsilon) - self.determinacy)
+
+    @property
+    def collapsed_reads(self) -> int:
+        """How many GROUND reads were absorbed as correlated duplicates."""
+        return max(0, self.ground_count - self.effective_ground_count)
 
 
 class DeterminacyGate:
@@ -124,10 +136,17 @@ class DeterminacyGate:
                 f"a GROUND state in {unit!r}"
             )
 
-        # --- Fuse the grounding layer (sensorimotor "what is"). ---
-        state, ground_determinacy = fuse_ground(
-            [(r.value, r.bound_confidence) for r in ground]
+        # --- Collapse shared error sources, then fuse the grounding layer. ---
+        # Reads declaring the same correlation_group are two views of one thing,
+        # so they are collapsed to one effective read before the noisy-OR sees
+        # them. Without this, duplicating a sensor buys determinacy that no
+        # additional evidence paid for. PREDICT reads need no such treatment:
+        # their drain is a max over contradictions, which duplication cannot
+        # inflate.
+        collapsed = collapse_correlated(
+            [(r.value, r.bound_confidence, r.correlation_group) for r in ground]
         )
+        state, ground_determinacy = fuse_ground(collapsed)
 
         # Every ground read bound to zero confidence (an unproven substrate, whose
         # reliability discounts its loudest claim to nothing) leaves no weight to
@@ -146,6 +165,7 @@ class DeterminacyGate:
                 ground_count=len(ground),
                 predict_count=len(predict),
                 conflict=0.0,
+                effective_ground_count=len(collapsed),
             )
 
         # --- Lower-layer constraint: the fused state must be physically possible. ---
@@ -162,6 +182,7 @@ class DeterminacyGate:
                 ground_count=len(ground),
                 predict_count=len(predict),
                 conflict=0.0,
+                effective_ground_count=len(collapsed),
             )
 
         # --- Score the prediction layer against the fused ground. ---
@@ -189,6 +210,7 @@ class DeterminacyGate:
             ground_count=len(ground),
             predict_count=len(predict),
             conflict=conflict,
+            effective_ground_count=len(collapsed),
         )
         if result.verdict is Verdict.DETERMINATE:
             result.reason = "determinacy within epsilon of certainty"

@@ -70,6 +70,10 @@ python -m cascade_regime_audit.examples.institutional_fragility
   a confident prediction that contradicts the ground drains determinacy (a
   PREDICT read can only ever lower determinacy, never inflate it). Confidence is
   bound into a shared frame (`bound = reliability * warp(native)`) before fusion.
+  Corroboration is only credited across **independent** reads: a substrate names
+  any shared error source in `correlation_group`, and reads sharing one are
+  collapsed to a single effective read (`fusion.collapse_correlated`) before the
+  noisy-OR sees them, so duplicating a sensor cannot manufacture determinacy.
   Before fusing, the gate enforces **unit commensurability** (GROUND reads must
   share units; PREDICT reads must match) and optional **physical `bounds`** (a
   fused estimate outside them forces `DEFER`). **Lε** is the final decision:

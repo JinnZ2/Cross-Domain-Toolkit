@@ -19,9 +19,11 @@ from ..determinacy_gate import DeterminacyGate, Verdict
 class _Stub(Substrate):
     modality = "stub"
 
-    def __init__(self, value, native, role=Role.GROUND, reliability=1.0):
+    def __init__(self, value, native, role=Role.GROUND, reliability=1.0,
+                 correlation_group=""):
         super().__init__(Calibration(reliability=reliability))
         self.role = role
+        self.correlation_group = correlation_group
         self._value = value
         self._native = native
 
@@ -131,6 +133,82 @@ class TestGate(unittest.TestCase):
         self.assertIn(f"gap {deferred.gap:.3f}", deferred.reason)
         determinate = gate.evaluate([_Stub(5.0, 0.99).bound_read()])
         self.assertEqual(determinate.gap, 0.0)             # met: no shortfall
+
+
+class TestCorrelatedGround(unittest.TestCase):
+    """Corroboration must be earned by reads that could have failed separately.
+    A substrate declaring a shared error source cannot buy determinacy twice."""
+
+    def test_duplicated_read_does_not_flip_the_verdict(self):
+        # The defect this guards: two probes on one power rail read 0.8, and
+        # noisy-OR turned that into 0.96 -- DEFER became DETERMINATE on no new
+        # evidence at all.
+        gate = DeterminacyGate(epsilon=0.1)
+        rail = [_Stub(300.0, 0.8, correlation_group="rail-a").bound_read()
+                for _ in range(2)]
+        res = gate.evaluate(rail)
+        self.assertAlmostEqual(res.determinacy, 0.8)
+        self.assertEqual(res.verdict, Verdict.DEFER)
+
+    def test_polling_the_same_group_harder_changes_nothing(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        one = gate.evaluate([_Stub(300.0, 0.8, correlation_group="g").bound_read()])
+        many = gate.evaluate([_Stub(300.0, 0.8, correlation_group="g").bound_read()
+                              for _ in range(8)])
+        self.assertAlmostEqual(many.determinacy, one.determinacy)
+
+    def test_independent_reads_still_corroborate(self):
+        # The fix must not punish genuine independence: ungrouped reads keep the
+        # noisy-OR credit they have always had.
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([_Stub(300.0, 0.8).bound_read(),
+                             _Stub(300.0, 0.8).bound_read()])
+        self.assertAlmostEqual(res.determinacy, 0.96)
+        self.assertEqual(res.verdict, Verdict.DETERMINATE)
+
+    def test_distinct_groups_are_independent_of_each_other(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([
+            _Stub(300.0, 0.8, correlation_group="rail-a").bound_read(),
+            _Stub(300.0, 0.8, correlation_group="rail-a").bound_read(),
+            _Stub(300.0, 0.8, correlation_group="rail-b").bound_read(),
+        ])
+        self.assertAlmostEqual(res.determinacy, 0.96)
+
+    def test_counts_report_what_was_collapsed(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([
+            _Stub(300.0, 0.8, correlation_group="g").bound_read(),
+            _Stub(300.0, 0.8, correlation_group="g").bound_read(),
+            _Stub(300.0, 0.7).bound_read(),
+        ])
+        self.assertEqual(res.ground_count, 3)
+        self.assertEqual(res.effective_ground_count, 2)
+        self.assertEqual(res.collapsed_reads, 1)
+
+    def test_nothing_collapsed_when_all_independent(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([_Stub(1.0, 0.5).bound_read() for _ in range(3)])
+        self.assertEqual(res.effective_ground_count, 3)
+        self.assertEqual(res.collapsed_reads, 0)
+
+    def test_group_still_pulls_the_state_estimate(self):
+        # Collapsing confidence must not throw away the reads' information about
+        # *where* the state is.
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([
+            _Stub(10.0, 0.9, correlation_group="g").bound_read(),
+            _Stub(20.0, 0.1, correlation_group="g").bound_read(),
+        ])
+        self.assertAlmostEqual(res.state_estimate, 11.0)
+
+    def test_correlation_group_rides_on_the_reading(self):
+        r = _Stub(1.0, 0.5, correlation_group="shared-clock").bound_read()
+        self.assertEqual(r.correlation_group, "shared-clock")
+        self.assertEqual(r.reading.correlation_group, "shared-clock")
+
+    def test_default_is_independent(self):
+        self.assertEqual(_Stub(1.0, 0.5).bound_read().correlation_group, "")
 
 
 class TestZeroConfidenceGround(unittest.TestCase):

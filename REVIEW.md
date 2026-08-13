@@ -15,10 +15,11 @@ _This file supersedes the earlier review (whose items were resolved in commits
 >
 > **Everything below is fixed except the two items that require GitHub settings**
 > (repository topics and the repo description — §5.3). The suite grew from 82 to
-> **93 tests**, all passing; all nine examples still run clean.
+> **110 tests**, all passing; all nine examples still run clean.
 >
 > | finding | resolution |
 > |---|---|
+> | D0 correlated reads inflate determinacy | fixed — `correlation_group` + `collapse_correlated`; 17 tests |
 > | D1 zero-confidence crash | fixed — `evaluate` DEFERs with a stated reason; 4 tests |
 > | D2 wrong Python floor | fixed — 3.8 in README, CONTRIBUTING, CLAUDE.md, `symbolic.py` |
 > | D3/D4 unused imports | removed; a repo-wide AST scan now finds none |
@@ -70,6 +71,45 @@ All four structural rules hold. Nothing to fix here.
 ---
 
 ## 2. Defects
+
+### D0 — Correlated GROUND reads manufacture determinacy · **high** _(found later, in review of an external proposals document; fixed)_
+`fusion.py` `combine_independent` · `substrate.py` (the intake contract)
+
+The noisy-OR rule `1 − Π(1 − cᵢ)` treats every read as an independent chance to
+have been wrong, and nothing in the substrate contract could say otherwise. So
+two views of one error source — two thermocouples on a power rail, two
+forecasters trained on one corpus, two feeds off one upstream source — bought
+determinacy that no additional evidence paid for. Measured, before the fix:
+
+| reads | determinacy | verdict |
+|---|---|---|
+| one probe @ 0.8 | 0.80 | DEFER |
+| the *same* probe polled twice | 0.96 | **DETERMINATE** |
+| polled four times | 0.9984 | DETERMINATE |
+
+Duplicating a single read flipped the gate from "don't act" to "act" — the exact
+failure the gate exists to prevent, arrived at from the other direction. This is
+the real content of P0.1 in `CROSS_DOMAIN_TOOLKIT_PROPOSALS.md`, though not its
+stated reasoning (see the note below).
+
+**Fix:** `SubstrateReading` / `Substrate` gained a `correlation_group` (default
+`""` = independent). `fusion.collapse_correlated` reduces each group to one
+effective read — the confidence-weighted centre of the group carrying the
+group's *best* confidence, not the noisy-OR of its members — and the gate
+collapses before fusing. Independent reads are untouched and corroborate exactly
+as before. `GateResult` now reports `effective_ground_count` and
+`collapsed_reads`, so a caller can see corroboration being refused. 17 tests.
+
+**On the proposal's reasoning:** P0.1 argues the gate's noisy-OR is "an unnamed
+reinvention" of Jøsang's subjective logic and "exactly isomorphic" to the Beta
+posterior. The Beta↔opinion mapping (`b = r/(W+r+s)`, `W = 2`) is standard and
+correct, but the gate's noisy-OR is *not* Jøsang's cumulative fusion, which is
+`b = (b₁u₂ + b₂u₁)/(u₁+u₂−u₁u₂)`. They are different rules, and the gate's is
+the weaker one. The conclusion (dependence-aware fusion, uncertainty mass as a
+first-class output) stands; the justification does not. **Deferred:** true
+subjective-logic uncertainty mass `u`, distinct from `1 − determinacy`, needs the
+opinion algebra and is not implemented here — `effective_ground_count` is the
+honest partial answer, since it exposes *how much* of the corroboration was real.
 
 ### D1 — `DeterminacyGate.evaluate` crashes on all-zero-confidence GROUND reads · **high**
 `fusion.py:29-34` · `determinacy_gate.py:128-133, 153`

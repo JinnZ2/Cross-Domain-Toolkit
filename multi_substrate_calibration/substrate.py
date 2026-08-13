@@ -14,6 +14,15 @@ THE CONTRACT (what a new substrate MUST provide)
    for a thermocouple and a cascade forecaster. That fixed shape is what makes
    the gate substrate-agnostic.
 
+1b. INDEPENDENCE. Corroboration is only worth something when the corroborating
+   read could have failed separately. A substrate declares a
+   `correlation_group` naming any error source it shares with another substrate
+   -- the same power rail, the same clock, the same training corpus, the same
+   upstream feed. Reads in one group are collapsed to a single effective read
+   before fusion, so duplicating a sensor cannot manufacture determinacy. The
+   default ("") means independent, which is the honest default only because a
+   substrate that shares an error source is expected to say so.
+
 2. ROLE. A substrate serves exactly one of two grounding roles:
      GROUND  -- a direct sensorimotor read of the current state ("what is").
      PREDICT -- a cascade/forecast read of a future or latent state ("what will
@@ -59,6 +68,7 @@ class SubstrateReading:
     role: Role                        # GROUND or PREDICT
     modality: str                     # "thermal", "acoustic", "logit", ...
     units: str                        # "K", "dB", "nat", ... (documentation frame)
+    correlation_group: str = ""       # shared error source; "" = independent
     timestamp: float = field(default_factory=time.time)
     provenance: dict = field(default_factory=dict)  # sensor id, location, raw payload
 
@@ -115,6 +125,10 @@ class BoundReading:
     def role(self) -> Role:
         return self.reading.role
 
+    @property
+    def correlation_group(self) -> str:
+        return self.reading.correlation_group
+
 
 class Substrate:
     """Base class for a sensing substrate. Subclass and implement `read()`.
@@ -123,6 +137,8 @@ class Substrate:
       - modality:    str tag for the physical/informational channel
       - role:        Role.GROUND or Role.PREDICT
       - units:       documentation frame for the value
+      - correlation_group: name of any error source shared with another
+                     substrate ("" = independent)
       - calibration: Calibration carrying the confidence-binding contract
       - read():      returns a SubstrateReading
 
@@ -133,6 +149,7 @@ class Substrate:
     modality: str = "abstract"
     role: Role = Role.GROUND
     units: str = "arb"
+    correlation_group: str = ""
 
     def __init__(self, calibration: Optional[Calibration] = None) -> None:
         self.calibration = calibration or Calibration()
@@ -169,5 +186,6 @@ def make_reading(
         role=substrate.role,
         modality=substrate.modality,
         units=substrate.units,
+        correlation_group=substrate.correlation_group,
         provenance=provenance or {},
     )

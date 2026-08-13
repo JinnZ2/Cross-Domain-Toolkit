@@ -9,7 +9,7 @@ checkable place.
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 
 def combine_independent(confidences: Sequence[float]) -> float:
@@ -19,6 +19,10 @@ def combine_independent(confidences: Sequence[float]) -> float:
     residual doubt. Two independent reads at 0.8 give 1 - 0.2*0.2 = 0.96. This
     rewards corroboration without ever exceeding 1, and a single weak read never
     forces determinacy down on its own.
+
+    The rule is only sound for reads that could have failed *separately*. Pass
+    reads through `collapse_correlated` first; feeding it two views of one error
+    source is what turns corroboration into self-agreement.
     """
     doubt = 1.0
     for c in confidences:
@@ -32,6 +36,51 @@ def weighted_mean(values: Sequence[float], weights: Sequence[float]) -> Optional
     if wsum <= 0.0:
         return None
     return sum(v * w for v, w in zip(values, weights)) / wsum
+
+
+def collapse_correlated(
+    reads: Sequence[Tuple[float, float, str]],
+) -> List[Tuple[float, float]]:
+    """Collapse reads that share an error source into one effective read each.
+
+    `reads` is a sequence of (value, confidence, correlation_group). Reads whose
+    group is empty are independent and pass through untouched; reads sharing a
+    group name are replaced by a single read whose value is their
+    confidence-weighted centre and whose confidence is the group's **best**, not
+    their combination.
+
+    That "max, not combine" is the whole point. Noisy-OR treats every read as a
+    fresh chance to have been wrong, so two thermocouples on one power rail --
+    or two forecasters trained on one corpus -- would report 0.96 determinacy on
+    0.8 of evidence, and a gate whose purpose is refusing unearned certainty
+    would be manufacturing it. Perfectly correlated reads carry one read's worth
+    of information no matter how many of them there are; anything less than
+    perfect correlation is the caller's to model by splitting the group.
+
+    Returns the collapsed (value, confidence) pairs, in first-seen group order.
+    """
+    groups: Dict[str, List[Tuple[float, float]]] = {}
+    order: List[str] = []
+    for i, (value, confidence, group) in enumerate(reads):
+        key = group.strip() if group and group.strip() else f"\0solo:{i}"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append((value, confidence))
+
+    collapsed: List[Tuple[float, float]] = []
+    for key in order:
+        members = groups[key]
+        if len(members) == 1:
+            collapsed.append(members[0])
+            continue
+        values = [v for v, _ in members]
+        confidences = [c for _, c in members]
+        centre = weighted_mean(values, confidences)
+        if centre is None:  # the whole group bound to zero confidence
+            centre = sum(values) / len(values)
+        collapsed.append((centre, max(confidences)))
+    return collapsed
 
 
 def fuse_ground(reads: Sequence[Tuple[float, float]]) -> Tuple[Optional[float], float]:

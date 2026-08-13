@@ -17,6 +17,7 @@ Every substrate emits reads in **one fixed shape**, the `SubstrateReading`:
 | `role` | `GROUND` (sensorimotor read of *what is*) or `PREDICT` (cascade forecast of *what will be*) |
 | `modality` | channel tag: `"thermal"`, `"acoustic"`, `"logit"`, … |
 | `units` | documentation frame for `value` |
+| `correlation_group` | name of an error source shared with another substrate; `""` = independent |
 | `timestamp` / `provenance` | when, and where from |
 
 That fixed shape is what makes the gate substrate-agnostic — a thermocouple and
@@ -47,7 +48,8 @@ commensurable: after binding, `0.9` from any substrate means the same thing —
 - **GROUND** reads are fused into a single present-state estimate
   (confidence-weighted mean) and their bound confidences combine by a
   noisy-OR rule into a **determinacy score** — corroboration raises it, and no
-  single weak read can force it down.
+  single weak read can force it down. Corroboration only counts across
+  *independent* reads: see below.
 - **PREDICT** reads are **not** averaged into the present, and they can only ever
   *lower* determinacy, never raise it. They are held against the fused ground: a
   forecast within `predict_tolerance` passes without penalty (it corroborates but
@@ -60,6 +62,38 @@ units of the ground state's own scale, and **must be > 0** — the gate rejects 
 non-positive value at construction. A PREDICT read within one tolerance-width of
 the fused ground agrees; beyond it, the drain grows with both the read's bound
 confidence and its distance.
+
+### Independence: corroboration has to be earned
+
+The noisy-OR rule treats every read as a fresh chance to have been wrong, which
+is only true when the reads *could have failed separately*. Two thermocouples on
+one power rail, two forecasters trained on one corpus, two feeds derived from one
+upstream source — poll them both and a naive noisy-OR reports `0.96` determinacy
+on `0.8` of evidence. A gate whose whole purpose is refusing unearned certainty
+would be manufacturing it.
+
+So a substrate declares any error source it shares:
+
+```python
+class RailProbe(Substrate):
+    modality, role, units = "thermal", Role.GROUND, "K"
+    correlation_group = "rail-a"        # "" (the default) means independent
+```
+
+Reads in one group are collapsed to a **single effective read** before fusion —
+their confidence-weighted centre, carrying the group's *best* confidence, not
+their combination. Independent reads are untouched and corroborate exactly as
+before. The result reports what happened:
+
+```python
+res.ground_count            # 3 reads arrived
+res.effective_ground_count  # 2 independent ones survived the collapse
+res.collapsed_reads         # 1 was absorbed as a duplicate
+```
+
+Perfectly correlated reads carry one read's worth of information however many of
+them there are. Partial correlation is the caller's to model — split the group,
+or discount the members' `reliability`.
 
 ### Grounding guards (unit commensurability + physical bounds)
 
