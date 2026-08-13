@@ -99,6 +99,29 @@ signals = SignalReads(
 onto `[0, 1]` as `1 − 1/ratio`: `0` at baseline, `0.5` at 2×, `0.9` at 10×. Swap
 in a domain-specific calibration if you have one.
 
+### S5 is the one people get backwards
+
+`sealing_under_contradiction(coherence_baseline, coherence_under_contradiction,
+contradiction_level)` is the reference mapper for S5, and it takes three inputs
+because S5 is a *response*, not a state:
+
+```python
+S5 = contradiction_level × max(0, (c_under − c_base) / (1 − c_base))
+```
+
+S5 does **not** measure disagreement. Disagreement is ordinary, and the other
+signals already see it. S5 fires when contradiction arrives and coherence
+**rises anyway** — the system closing ranks instead of updating. A healthy
+system's coherence *falls* when it meets a contradiction, while it works out
+which part of itself was wrong, so falling or flat coherence returns `0.0`.
+With no contradiction there is nothing to respond to and the signal abstains: a
+serene system that was never challenged is not evidence of sealing.
+
+The tempting shortcut is to feed a sensor-fusion gate's raw conflict score
+straight in. Don't — conflict measures sources *disagreeing*, which is closest
+to a low coherence reading, so wiring it to S5 inverts the meaning. Use conflict
+as the `contradiction_level` input and measure coherence separately.
+
 ## Worked instantiations
 
 - `examples/model_collapse.py` — generative model trained on synthetic output;
@@ -107,5 +130,11 @@ in a domain-specific calibration if you have one.
 - `examples/institutional_fragility.py` — an institution consolidating
   authority; `h_eff` = consolidation ratio. Shows that *the same signals* read
   `stressed` below the spinodal and `cascade` past it.
+- `examples/cusp_atlas.py` — eight domains that already know where their own
+  fold is (Euler buckling, van der Waals, Semenov ignition, AMOC shutdown, Allee
+  collapse, grid voltage nose, Griffith fracture, fishery MSY), each with a
+  mapper putting its control/critical ratio on the detector's scale so that
+  ratio 1.0 lands exactly on `H_SPINODAL`. This is what makes the audit a
+  *calibrated* instrument rather than an analogy.
 
 Tests: `python -m unittest cascade_regime_audit.tests.test_cascade_audit`

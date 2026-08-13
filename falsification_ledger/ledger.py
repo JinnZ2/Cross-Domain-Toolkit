@@ -35,6 +35,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from .merkle import merkle_proof, merkle_root
 from .symbolic import Checker, evaluate_logical_form
 
 # A kernel is a pure function of (params, condition) -> predicted value.
@@ -493,6 +494,34 @@ class Ledger:
             "thin_survival_versions": thin,
             "escape_hatch_rate": rate,
             "min_survival": min_survival,
+        }
+
+    # --- audit certificates: let a third party check one entry ---
+    def merkle_root(self) -> Optional[str]:
+        """Commit to the whole recorded history in one hash.
+
+        `verify()` proves the chain to whoever holds it; this root is what you
+        hand or publish to someone who does not. None if nothing is recorded.
+        """
+        return merkle_root([e.hash for e in self._entries])
+
+    def audit_certificate(self, index: int) -> Dict[str, Any]:
+        """Everything a third party needs to verify entry `index` on its own.
+
+        The certificate carries the entry's hash, its sibling path, and the root
+        -- not the rest of the ledger. The auditor checks it with
+        `verify_proof(cert["leaf"], cert["index"], cert["proof"], cert["root"])`
+        and learns nothing about the entries they were not shown.
+        """
+        if not self._entries:
+            raise RefutationError("nothing recorded; there is no history to certify")
+        leaves = [e.hash for e in self._entries]
+        return {
+            "index": index,
+            "leaf": leaves[index],
+            "proof": merkle_proof(leaves, index),
+            "root": merkle_root(leaves),
+            "entry_count": len(leaves),
         }
 
     # --- serialization: commit the ledger as data ---

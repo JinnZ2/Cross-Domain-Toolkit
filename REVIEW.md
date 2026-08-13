@@ -15,7 +15,7 @@ _This file supersedes the earlier review (whose items were resolved in commits
 >
 > **Everything below is fixed except the two items that require GitHub settings**
 > (repository topics and the repo description — §5.3). The suite grew from 82 to
-> **110 tests**, all passing; all nine examples still run clean.
+> **181 tests**, all passing; all eleven examples still run clean.
 >
 > | finding | resolution |
 > |---|---|
@@ -41,7 +41,7 @@ _This file supersedes the earlier review (whose items were resolved in commits
 | Section | Result |
 |---|---|
 | 1. Structural consistency with CLAUDE.md | **Clean** — no violations |
-| 2. Defects | 9 (1 high, 1 medium, 7 low/info) — all fixed |
+| 2. Defects | 10 (2 high, 1 medium, 7 low/info) — all fixed |
 | 3. Missing tests for documented entry points | 5 — all added |
 | 4. Documentation gaps | **Clean** — all four checks pass |
 | 5. Discoverability | 4 gaps — 3 fixed, topics open |
@@ -423,6 +423,41 @@ current by hand or drop it; a stale count is worse than none.
 the description — both in §5.3 above. Neither can be done from the repo; they
 live in **Settings → About**. This is the single highest-leverage item left,
 because it's the only one that changes whether the repo is *found*.
+
+**Four items from an external proposals document** (`CROSS_DOMAIN_TOOLKIT_PROPOSALS.md`)
+were assessed against this code and built, three of them redesigned first:
+
+| proposal | what shipped |
+|---|---|
+| P0.1 dependence-aware fusion | `correlation_group` + `collapse_correlated` (see **D0**) |
+| P0.4 + P3.1 domain example packs | `cascade_regime_audit/examples/cusp_atlas.py` (8 folds), `falsification_ledger/examples/domain_atlas.py` (6 fields) |
+| P2.2 Merkle certificates | `falsification_ledger/merkle.py` + `Ledger.audit_certificate()` |
+| P0.3 substrate trust | `multi_substrate_calibration/trust.py` — **not** EigenTrust; see below |
+| P0.2 gate→audit bridge | `mappers.sealing_under_contradiction` — **not** conflict mass; see below |
+
+Three of those changed shape on contact with the code:
+
+- **P0.3 proposed EigenTrust.** EigenTrust computes *transitive* trust among
+  peers who rate each other. Substrates don't rate each other — they're rated by
+  reality, through a ledger — so the power iteration has no edges to iterate
+  over. `trust.py` is the Beta posterior that the structure actually calls for,
+  and says so in `rank_substrates`' docstring.
+- **P0.2 proposed feeding Dempster–Shafer conflict mass into S5.** That inverts
+  the signal: conflict measures sources *disagreeing*, while S5 fires when
+  contradiction arrives and coherence *rises anyway*. The mapper takes
+  contradiction and coherence separately, and a gate's conflict is the former.
+- **P2.3 said stdlib has no signing.** It has `hmac`. `sign_root` ships now,
+  with the symmetric-vs-asymmetric boundary documented rather than deferred.
+
+**P1 (the `integrate/` + Belnap + ATMS + Dung + repair stack) was not built and
+is not recommended here.** It's ~750 LOC that turns three standalone instruments
+into a knowledge-representation framework, against CLAUDE.md's "each top-level
+package stands alone." It's a good project; it's a different repository.
+
+Also not built, and worth naming: **P2.1's DPLL/BMC.** You cannot encode SHA-256
+in CNF and bounded-model-check it at any useful depth. Append-only monotonicity
+with hashes abstracted as uninterpreted values is provable; hash-chain integrity
+is not, and it is already tested.
 
 **Worth doing next, in order:**
 

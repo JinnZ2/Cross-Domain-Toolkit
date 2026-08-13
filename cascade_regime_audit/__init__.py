@@ -3,7 +3,8 @@
 Public surface:
     CascadeAudit, SignalReads, AuditResult, Regime, H_SPINODAL, SIGNAL_NAMES
     mappers: slowing_down_from_series, variance_inflation_from_series,
-             lag1_autocorr, normalized_variance, abs_skew, coefficient_of_variation
+             lag1_autocorr, normalized_variance, abs_skew,
+             coefficient_of_variation, sealing_under_contradiction
 """
 
 from .cascade_audit import (
@@ -19,6 +20,7 @@ from .mappers import (
     coefficient_of_variation,
     lag1_autocorr,
     normalized_variance,
+    sealing_under_contradiction,
     slowing_down_from_series,
     variance_inflation_from_series,
 )
@@ -36,4 +38,5 @@ __all__ = [
     "normalized_variance",
     "abs_skew",
     "coefficient_of_variation",
+    "sealing_under_contradiction",
 ]

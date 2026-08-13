@@ -84,6 +84,53 @@ def coefficient_of_variation(series: Sequence[float]) -> float:
     return max(0.0, min(1.0, cv))
 
 
+def sealing_under_contradiction(coherence_baseline: float,
+                                coherence_under_contradiction: float,
+                                contradiction_level: float) -> float:
+    """Map a system's *response to being contradicted* onto S5.
+
+    S5 is the signal people get backwards, so be precise about what it measures.
+    It is not disagreement. Disagreement among sources is ordinary and is what
+    the other signals already see. S5 fires when contradiction arrives and
+    coherence **rises anyway** -- the system closing ranks instead of updating.
+    A healthy system's coherence *falls* when it meets a contradiction, while it
+    works out which part of itself was wrong.
+
+    So the pressure needs all three inputs:
+
+      - `contradiction_level` in [0, 1]: how much contradiction actually arrived.
+        With none, there is nothing to respond to and the signal abstains at 0 --
+        a serene system that was never challenged is not evidence of sealing.
+      - `coherence_baseline` in [0, 1]: internal agreement before the challenge.
+      - `coherence_under_contradiction` in [0, 1]: internal agreement after it.
+
+    The pressure is the *rise*, normalized against the room left to rise in, and
+    scaled by how real the challenge was:
+
+        S5 = contradiction_level * max(0, (c_under - c_base) / (1 - c_base))
+
+    Coherence that falls or holds returns 0.0. A system already at c_base = 1.0
+    has no room to rise and returns 0.0 -- total prior agreement is a different
+    pathology (see `diversity_collapse`, S6), not this one.
+
+    A note on the tempting shortcut: a fusion gate's raw conflict score is *not*
+    this signal. Conflict measures sources disagreeing, which is closest to a low
+    coherence reading -- feeding it in directly inverts the meaning. Use a gate's
+    conflict as the `contradiction_level` input, and measure coherence
+    separately.
+    """
+    for name, v in (("coherence_baseline", coherence_baseline),
+                    ("coherence_under_contradiction", coherence_under_contradiction),
+                    ("contradiction_level", contradiction_level)):
+        if not 0.0 <= v <= 1.0:
+            raise ValueError(f"{name} must be in [0, 1], got {v}")
+    headroom = 1.0 - coherence_baseline
+    if headroom <= 0.0:
+        return 0.0
+    rise = (coherence_under_contradiction - coherence_baseline) / headroom
+    return max(0.0, min(1.0, contradiction_level * rise))
+
+
 # --- aliases under the original public names --------------------------------
 # These predate the extraction of this module and stay exported so existing forks
 # keep working. They are thin pass-throughs: the four functions above are the

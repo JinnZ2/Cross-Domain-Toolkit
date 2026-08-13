@@ -95,6 +95,31 @@ Perfectly correlated reads carry one read's worth of information however many of
 them there are. Partial correlation is the caller's to model — split the group,
 or discount the members' `reliability`.
 
+### Earned reliability: where the number comes from
+
+`Calibration.reliability` is asserted by the caller, which is a problem for a
+package whose whole pitch is that an unproven substrate can't dominate the gate —
+if reliability is asserted, "unproven" is exactly what nobody has to admit to.
+`trust.py` closes that loop from a substrate's track record:
+
+```python
+from multi_substrate_calibration import earned_reliability, eligible_for_ground
+
+probe.calibration = Calibration(reliability=earned_reliability(hits=18, misses=2))
+eligible_for_ground(hits=18, misses=2)      # -> True
+eligible_for_ground(hits=3, misses=0)       # -> False: three observations
+```
+
+The estimator is the Beta posterior mean `(hits + 1) / (hits + misses + 2)`, so
+2/2 earns `0.75` rather than `1.0` and no record at all sits at `0.5` — silence
+costs something. `reliability_interval` reports how thin the record is, which is
+what separates "0.75 because it's mediocre" from "0.75 because we've barely
+watched it."
+
+These functions take **counts, not ledgers**. Where the track record lives — a
+falsification ledger, a CSV, a held-out eval — is yours; this package never
+imports it, which is what keeps it forkable on its own.
+
 ### Grounding guards (unit commensurability + physical bounds)
 
 Before it fuses anything, the gate enforces that the reads are actually
@@ -150,10 +175,14 @@ result = gate.evaluate([probe_a.bound_read(), probe_b.bound_read()])
   `Calibration`, `Substrate`, `make_reading`.
 - `determinacy_gate.py` — substrate-agnostic routing + the Lε decision.
 - `fusion.py` — the pure fusion math (`combine_independent`, `weighted_mean`,
-  `fuse_ground`, `contradiction_drain`), split out so the gate reads as
-  "fuse → decide" and the agreement-vs-drain policy is testable on its own.
+  `fuse_ground`, `contradiction_drain`, `collapse_correlated`), split out so the
+  gate reads as "collapse → fuse → decide" and the agreement-vs-drain policy is
+  testable on its own.
+- `trust.py` — earned reliability from a track record (`earned_reliability`,
+  `reliability_interval`, `eligible_for_ground`, `rank_substrates`). Takes counts,
+  never a ledger.
 - `examples/thermal_substrate.py` — a GROUND substrate, end to end.
 - `examples/acoustic_substrate.py` — a PREDICT substrate; shows a contradicting
   forecast draining determinacy.
-- `tests/test_multi_substrate.py`, `tests/test_fusion.py`,
+- `tests/test_multi_substrate.py`, `tests/test_fusion.py`, `tests/test_trust.py`,
   `tests/test_examples.py` — `python -m unittest discover -p 'test_*.py'`
