@@ -14,6 +14,10 @@ recognise (calls other than the whitelisted `abs`/`min`/`max`, attribute access,
 subscripts, names not in the binding, ...) by raising `LogicalFormError`. That
 refusal is the point: an unparseable form is reported, never silently passed.
 
+Requires Python >= 3.8: literals are read as `ast.Constant`, which CPython's
+parser only began emitting in 3.8 (3.7 still produced `ast.Num`). This module
+sets the toolkit's interpreter floor; everything else here runs on 3.7.
+
 To go beyond arithmetic -- quantifiers, real proof -- plug in your own solver.
 `Checker` is just `Callable[[str, Dict[str, Any]], bool]`, so
 `Ledger(..., checker=my_z3_backend)` wires the same slot to Z3 or any prover you

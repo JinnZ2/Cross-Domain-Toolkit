@@ -2,7 +2,7 @@
 
 This toolkit is meant to be forked and extended. Two rules keep it coherent:
 
-1. **stdlib-only Python 3 (≥ 3.7).** No third-party dependencies, no build step.
+1. **stdlib-only Python 3 (≥ 3.8).** No third-party dependencies, no build step.
    If a change seems to need a dependency, prefer a stdlib implementation or open
    an issue first.
 2. **The core never imports its plugins.** New domains are added as worked

@@ -228,6 +228,18 @@ class TestSymbolic(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][0], "whatever")
 
+    def test_check_logical_form_against_an_explicit_binding(self):
+        # The public method, driven directly rather than through record(): it
+        # answers "does the current claim's form hold under these values?"
+        led = Ledger(self._kernel, Claim(
+            "y = a x + b", {"a": 2.0, "b": 0.0}, logical_form="a > 0 and x >= 0"))
+        self.assertTrue(led.check_logical_form({"a": 2.0, "x": 1.0}))
+        self.assertFalse(led.check_logical_form({"a": -2.0, "x": 1.0}))
+
+    def test_check_logical_form_is_none_without_a_form(self):
+        led = Ledger(self._kernel, Claim("y = a x + b", {"a": 2.0, "b": 0.0}))
+        self.assertIsNone(led.check_logical_form({"a": 2.0}))
+
     def test_logical_form_propagates_across_refute(self):
         led = Ledger(self._kernel, Claim(
             "y = a x + b", {"a": 2.0, "b": 0.0}, logical_form="a > 0"))

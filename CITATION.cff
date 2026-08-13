@@ -3,17 +3,24 @@ message: "If you use this toolkit, please cite it."
 title: "Cross-Domain-Toolkit"
 abstract: "Portable, stdlib-only Python instruments for claim falsification,
   sensor-fusion calibration, and cascade/tipping-point detection."
+type: software
 authors:
-  - family-names: "JinnZ2"
-    name-particle: ""
+  - name: "JinnZ2"
+    alias: "JinnZ2"
 repository-code: "https://github.com/JinnZ2/Cross-Domain-Toolkit"
+url: "https://github.com/JinnZ2/Cross-Domain-Toolkit"
 license: MIT
 version: "0.1.0"
 date-released: "2026-07-08"
 keywords:
   - falsification
+  - refutation
+  - scientific-audit
   - early-warning-signals
   - tipping-points
-  - sensor-fusion
-  - ai-grounding
   - spinodal
+  - sensor-fusion
+  - determinacy
+  - grounding
+  - ai-grounding
+  - python-stdlib

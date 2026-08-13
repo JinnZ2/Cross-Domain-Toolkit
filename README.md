@@ -10,6 +10,10 @@ language: Python
 
 # Cross-Domain-Toolkit
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none%20(stdlib%20only)-brightgreen.svg)](CONTRIBUTING.md)
+
 > **Cross-Domain-Toolkit** — stdlib-only Python instruments for **claim
 > falsification**, **sensor-fusion calibration**, and **cascade / tipping-point
 > (spinodal) detection**, portable across physics, ecology, and AI-behavior
@@ -17,7 +21,7 @@ language: Python
 
 Portable, forkable instruments that carry a single method — ground your reads,
 record your refutations, watch for the cascade — across domains. Each package is
-self-contained, **stdlib-only Python 3 (≥ 3.7, no third-party dependencies)**,
+self-contained, **stdlib-only Python 3 (≥ 3.8, no third-party dependencies)**,
 and designed to be instantiated in a domain the author never anticipated:
 physics, ecology, AI behavior, institutions. The one method behind all three is
 written up in [`docs/METHOD.md`](docs/METHOD.md).
@@ -65,8 +69,10 @@ one control parameter.
 
 ## Running
 
-Requires Python ≥ 3.7 (uses `from __future__ import annotations` and
-dataclasses). Everything is stdlib-only; no install step, no package manager.
+Requires Python ≥ 3.8. Most of the toolkit runs on 3.7 (`from __future__ import
+annotations` plus dataclasses), but `falsification_ledger/symbolic.py` reads
+literals as `ast.Constant`, which CPython's parser only emits from 3.8 on.
+Everything is stdlib-only; no install step, no package manager.
 
 ```bash
 # tests

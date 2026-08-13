@@ -84,13 +84,17 @@ def coefficient_of_variation(series: Sequence[float]) -> float:
     return max(0.0, min(1.0, cv))
 
 
-# --- back-compat aliases matching the original public names -----------------
+# --- aliases under the original public names --------------------------------
+# These predate the extraction of this module and stay exported so existing forks
+# keep working. They are thin pass-throughs: the four functions above are the
+# canonical names, and only these two ever acquired an alias. Prefer the
+# canonical name in new code.
 
 def slowing_down_from_series(series: Sequence[float]) -> float:
-    """Map a residual series onto S1 (critical slowing down) via lag-1 autocorr."""
+    """Alias for `lag1_autocorr` -- a residual series mapped onto S1."""
     return lag1_autocorr(series)
 
 
 def variance_inflation_from_series(series: Sequence[float], baseline_var: float) -> float:
-    """Map a residual series onto S2 (variance inflation) against a baseline var."""
+    """Alias for `normalized_variance` -- a residual series mapped onto S2."""
     return normalized_variance(series, baseline_var)

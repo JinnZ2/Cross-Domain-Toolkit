@@ -35,7 +35,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from .symbolic import Checker, LogicalFormError, evaluate_logical_form
+from .symbolic import Checker, evaluate_logical_form
 
 # A kernel is a pure function of (params, condition) -> predicted value.
 Kernel = Callable[[Dict[str, float], Any], float]
@@ -442,7 +442,13 @@ class Ledger:
             reference_class=base.reference_class,
             logical_form=base.logical_form,
         )
+        # Re-run every guard, not just the specificity one: `refute` validated the
+        # base claim, but `restate` rewrites the statement, and the guards must
+        # stay symmetric with `refute`'s so a future field revision here cannot
+        # slip past a check.
+        self._require_falsifiable(revised)
         self._require_specific(revised)
+        self._require_symbolic(revised)
         self._claim = revised
         self._claims[-1] = revised
         return revised
