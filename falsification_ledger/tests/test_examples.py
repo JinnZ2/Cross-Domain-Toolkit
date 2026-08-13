@@ -12,6 +12,7 @@ import io
 import contextlib
 import runpy
 import unittest
+import warnings
 
 EXAMPLES = (
     "physics_ledger",
@@ -19,6 +20,7 @@ EXAMPLES = (
     "ai_behavior_ledger",
     "falsifiability_gate",
     "symbolic_form",
+    "domain_atlas",
 )
 
 
@@ -27,7 +29,11 @@ class TestExamplesRun(unittest.TestCase):
         for name in EXAMPLES:
             with self.subTest(example=name):
                 buf = io.StringIO()
-                with contextlib.redirect_stdout(buf):
+                with contextlib.redirect_stdout(buf), warnings.catch_warnings():
+                    # A test module that imported the example already put it in
+                    # sys.modules; runpy warns about re-executing it, which is
+                    # exactly what a smoke test means to do.
+                    warnings.simplefilter("ignore", RuntimeWarning)
                     runpy.run_module(
                         f"falsification_ledger.examples.{name}",
                         run_name="__main__",

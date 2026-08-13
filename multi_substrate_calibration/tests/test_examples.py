@@ -12,6 +12,7 @@ import io
 import contextlib
 import runpy
 import unittest
+import warnings
 
 EXAMPLES = ("thermal_substrate", "acoustic_substrate")
 
@@ -21,7 +22,11 @@ class TestExamplesRun(unittest.TestCase):
         for name in EXAMPLES:
             with self.subTest(example=name):
                 buf = io.StringIO()
-                with contextlib.redirect_stdout(buf):
+                with contextlib.redirect_stdout(buf), warnings.catch_warnings():
+                    # A test module that imported the example already put it in
+                    # sys.modules; runpy warns about re-executing it, which is
+                    # exactly what a smoke test means to do.
+                    warnings.simplefilter("ignore", RuntimeWarning)
                     runpy.run_module(
                         f"multi_substrate_calibration.examples.{name}",
                         run_name="__main__",

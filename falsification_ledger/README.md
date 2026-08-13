@@ -33,12 +33,40 @@ say, how an AI system behaves.
 
 **Threat model — read this.** The chain is tamper-**evident** against edits to
 existing history, not tamper-**proof**: a party who can rewrite the whole file
-can recompute every hash from any point forward, and there is no signature or
-external anchor to stop them. For non-repudiation, sign the head hash
-(`led.entries[-1].hash`) with a key the author doesn't control, or periodically
-anchor it somewhere append-only outside the repo (a timestamping service, a
-commit in a separate audited repo). Within a single trusted working copy, the
-chain does its job: it catches accidental or after-the-fact edits.
+can recompute every hash from any point forward. Within a single trusted working
+copy the chain does its job — it catches accidental or after-the-fact edits — and
+`sign_root` (below) is how you extend that past the working copy.
+
+## Audit certificates
+
+`verify()` proves the chain to whoever holds the whole ledger. That is the wrong
+shape for a third party, who would need every entry — including rows that are
+none of their business — to check one. So the entries are also committed to a
+**Merkle root**, and any single entry can be proved against it with `log₂(n)`
+sibling hashes:
+
+```python
+cert = led.audit_certificate(4317)
+# hand cert to an auditor; they hold no other part of the ledger
+verify_proof(cert["leaf"], cert["index"], cert["proof"], cert["root"])  # -> True
+```
+
+That turns "trust us, it verifies" into "here is a certificate, check it." A
+level with an odd node promotes it rather than duplicating it, so two different
+trees can't collapse onto one root (the CVE-2012-2459 shape).
+
+For non-repudiation, sign the root with a key the author doesn't hold:
+
+```python
+sig = sign_root(led.merkle_root(), auditor_key)
+verify_root_signature(led.merkle_root(), sig, auditor_key)   # -> True
+```
+
+`sign_root` is HMAC-SHA256, which is **symmetric**: a verifier needs the same key
+the signer used, so it proves authorship to a *counterparty*, not to the public.
+Asymmetric signing (ed25519) would prove it to anyone and needs a dependency this
+toolkit doesn't take — keep the key with the auditor, or anchor the root
+somewhere append-only outside the repo.
 
 ## The structures
 
@@ -123,5 +151,10 @@ guards close the usual escape routes:
 - `examples/symbolic_form.py` — a machine-checkable `logical_form`; the symbolic
   read (`logical_ok`) flags a violated positive-slope invariant even while the
   numeric tolerance check is green.
+- `examples/domain_atlas.py` — six fields at once (seismology b-value,
+  epidemiological R₀, debt-stabilising primary balance, an ML scaling law, SRE
+  error-budget burn rate, Maas–Hoffman salinity tolerance), each with a strict
+  ledger, a real estimator, and a prepared update. Four claims are refuted and
+  superseded; two hold, and their prepared update is *refused*.
 
 Tests: `python -m unittest falsification_ledger.tests.test_ledger`
