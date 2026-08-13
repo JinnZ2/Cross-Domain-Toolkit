@@ -40,7 +40,7 @@ for the structural point where a system's alternate state stops existing.**
 | package | what it is | key entry points |
 |---|---|---|
 | `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (Lε decision), `fusion.py` (pure fusion math), `trust.py` (earned reliability from counts) |
-| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker), `merkle.py` (audit certificates) |
+| `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker), `merkle.py` (audit certificates), `explorer.py` (residual diagnosis + guarded repair) |
 | `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`), `mappers.py` (series→signal helpers) |
 
 ## Commands
@@ -98,7 +98,15 @@ python -m cascade_regime_audit.examples.institutional_fragility
   a row without holding the ledger. Odd nodes are promoted, never duplicated
   (CVE-2012-2459). `sign_root` is HMAC — symmetric, so it proves authorship to a
   counterparty holding the key, not to the public; asymmetric signing would need
-  a dependency the toolkit doesn't take.
+  a dependency the toolkit doesn't take. `explorer.py` closes the loop
+  (diagnose → edit → cross-domain patterns → rerun) and is **built to refuse**:
+  it classifies a residual sequence by shape and proposes a parameter edit only
+  for `BIAS`/`SCALE` (form right, one number wrong), moving exactly one
+  parameter. `CURVATURE`/`THRESHOLD`/`OSCILLATION`/`NOISE` return no edit,
+  because a loop that always has another parameter to offer is an escape-hatch
+  machine — the pathology `escape_hatch_flag` exists to catch. A `THRESHOLD`
+  diagnosis is the seam to `cascade_regime_audit`, named in plain text and never
+  imported; the pattern catalogue is annotation for a human, never dispatch.
 - **`cascade_regime_audit`** keeps the *statistical* read (six signals →
   aggregate pressure) and the *structural* read (`h_eff` vs the spinodal `2/√27`)
   independent, because they fail in opposite directions. The `COMMITTED` regime

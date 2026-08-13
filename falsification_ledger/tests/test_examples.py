@@ -21,6 +21,7 @@ EXAMPLES = (
     "falsifiability_gate",
     "symbolic_form",
     "domain_atlas",
+    "claim_explorer",
 )
 
 

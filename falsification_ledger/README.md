@@ -138,6 +138,57 @@ guards close the usual escape routes:
   `Callable[[str, dict], bool]`. `strict_symbolic=True` refuses a claim with no
   logical form.
 
+## The explorer: diagnose → edit → look across domains → rerun
+
+A claim was refuted. Now what? `explorer.py` reads the *shape* of the residuals
+and says what kind of wrong the claim is — and, more often than not, refuses to
+propose new numbers.
+
+```python
+from falsification_ledger import ClaimExplorer
+
+trace = ClaimExplorer(led, kernel, oracle, conditions, tolerance=0.5).explore()
+print(trace.summary())
+```
+
+| signature | what the residuals look like | edit proposed? |
+|---|---|---|
+| `HOLDING` | everything inside tolerance | no — nothing to repair |
+| `NOISE` | straddle zero, none badly out | no — justify the tolerance first |
+| `BIAS` | one sign, one rough size | **yes** — an offset is off |
+| `SCALE` | observed/predicted near-constant, ≠ 1 | **yes** — a gain is off |
+| `CURVATURE` | signed error runs with the condition | no — the *form* is wrong |
+| `THRESHOLD` | holds one side of a control value, breaks the other | no — regime boundary |
+| `OSCILLATION` | sign alternates | no — a periodic term is missing |
+
+**Why it refuses so often.** An automated "refuted, so adjust and retry" loop is
+structurally an escape-hatch machine — the exact pathology `escape_hatch_flag`
+exists to catch. A tool that always has another parameter to offer will walk any
+claim away from any refutation for ever, and the ledger will faithfully record a
+long history of a claim that never once survived a test. So only `BIAS` and
+`SCALE` earn a proposal, because only they are consistent with "the shape is
+right and a number is wrong." And when a proposal *is* made, it moves **exactly
+one** named parameter: moving one number with a stated reason is a correction,
+moving all of them until the residuals go quiet is fitting.
+
+The explorer also stops itself when the claim is already thrashing — two
+supersessions with nothing surviving in between and it declines to suggest a
+third, quoting the escape-hatch verdict.
+
+**Cross-domain patterns.** Each signature carries a catalogue of the shapes that
+usually produce it and the fields where each is canonical — `CURVATURE` against a
+linear claim points at saturating growth (logistic carrying capacity,
+Michaelis–Menten, market adoption, learning curves), power laws (neural scaling,
+allometry, Gutenberg–Richter), or compounding (epidemic early phase, debt
+dynamics). It's annotation for a human, never dispatch: the diagnosis is computed
+from numbers alone and nothing in the module branches on a domain.
+
+**The `THRESHOLD` seam.** A residual that holds below a control value and breaks
+above it isn't mis-parameterized — it's a system read across a regime boundary.
+That is precisely when to stop refitting and ask `cascade_regime_audit` whether
+the alternate state still exists. The explorer *names* that handoff in plain text
+and doesn't make it; the packages stay standalone.
+
 ## Worked forks
 
 - `examples/physics_ledger.py` — projectile range; recovers the true `g`.
@@ -151,6 +202,8 @@ guards close the usual escape routes:
 - `examples/symbolic_form.py` — a machine-checkable `logical_form`; the symbolic
   read (`logical_ok`) flags a violated positive-slope invariant even while the
   numeric tolerance check is green.
+- `examples/claim_explorer.py` — four refuted claims, two repaired and two
+  refused; shows the `THRESHOLD` diagnosis handing off to the cascade audit.
 - `examples/domain_atlas.py` — six fields at once (seismology b-value,
   epidemiological R₀, debt-stabilising primary balance, an ML scaling law, SRE
   error-budget burn rate, Maas–Hoffman salinity tolerance), each with a strict

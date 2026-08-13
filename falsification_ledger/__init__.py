@@ -8,6 +8,8 @@ Public surface:
     symbolic: Checker, LogicalFormError, evaluate_logical_form
     audit:    merkle_root, merkle_proof, verify_proof, sign_root,
               verify_root_signature
+    explorer: ClaimExplorer, diagnose, classify_residuals, Signature,
+              Diagnosis, Exploration, CrossDomainPattern, PATTERNS
 """
 
 from .ledger import (
@@ -23,6 +25,16 @@ from .ledger import (
     classify_falsifiability,
     classify_specificity,
     find_vague_terms,
+)
+from .explorer import (
+    PATTERNS,
+    ClaimExplorer,
+    CrossDomainPattern,
+    Diagnosis,
+    Exploration,
+    Signature,
+    classify_residuals,
+    diagnose,
 )
 from .merkle import (
     merkle_proof,
@@ -54,4 +66,12 @@ __all__ = [
     "verify_proof",
     "sign_root",
     "verify_root_signature",
+    "ClaimExplorer",
+    "diagnose",
+    "classify_residuals",
+    "Signature",
+    "Diagnosis",
+    "Exploration",
+    "CrossDomainPattern",
+    "PATTERNS",
 ]
