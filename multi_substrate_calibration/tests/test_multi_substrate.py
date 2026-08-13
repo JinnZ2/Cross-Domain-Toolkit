@@ -61,6 +61,19 @@ class TestContract(unittest.TestCase):
         with self.assertRaises(ValueError):
             Liar().bound_read()
 
+    def test_modality_mismatch_rejected(self):
+        # The sibling check to role: a reading tagged with a modality the
+        # substrate never declared cannot enter the gate either.
+        class Mislabelled(Substrate):
+            modality = "thermal"
+            role = Role.GROUND
+
+            def read(self):
+                return SubstrateReading(1.0, 0.9, Role.GROUND, "acoustic", "u")
+
+        with self.assertRaises(ValueError):
+            Mislabelled().bound_read()
+
 
 class TestGate(unittest.TestCase):
     def test_no_ground_defers(self):
@@ -110,6 +123,50 @@ class TestGate(unittest.TestCase):
             [_Stub(10.0, 0.9).bound_read(), _Stub(20.0, 0.1).bound_read()]
         )
         self.assertLess(res.state_estimate, 15.0)
+
+    def test_gap_reports_shortfall_and_matches_the_reason(self):
+        gate = DeterminacyGate(epsilon=0.1)
+        deferred = gate.evaluate([_Stub(5.0, 0.5).bound_read()])
+        self.assertAlmostEqual(deferred.gap, 0.4)          # (1 - 0.1) - 0.5
+        self.assertIn(f"gap {deferred.gap:.3f}", deferred.reason)
+        determinate = gate.evaluate([_Stub(5.0, 0.99).bound_read()])
+        self.assertEqual(determinate.gap, 0.0)             # met: no shortfall
+
+
+class TestZeroConfidenceGround(unittest.TestCase):
+    """An unproven substrate (reliability -> 0) binds to zero confidence. There is
+    then no weight to average, so there is no state estimate -- the gate must
+    DEFER on that rather than crash or invent a state."""
+
+    def _unproven(self, value, role=Role.GROUND):
+        return _Stub(value, 1.0, role=role, reliability=0.0).bound_read()
+
+    def test_defers_with_no_state_estimate(self):
+        res = DeterminacyGate(epsilon=0.1).evaluate([self._unproven(300.0)])
+        self.assertEqual(res.verdict, Verdict.DEFER)
+        self.assertIsNone(res.state_estimate)
+        self.assertEqual(res.determinacy, 0.0)
+        self.assertIn("zero confidence", res.reason)
+
+    def test_bounds_check_does_not_crash(self):
+        gate = DeterminacyGate(epsilon=0.1, bounds=(0.0, 1000.0))
+        self.assertEqual(gate.evaluate([self._unproven(300.0)]).verdict, Verdict.DEFER)
+
+    def test_prediction_scoring_does_not_crash(self):
+        gate = DeterminacyGate(epsilon=0.1, predict_tolerance=2.0)
+        res = gate.evaluate([
+            self._unproven(300.0),
+            _Stub(500.0, 0.9, role=Role.PREDICT).bound_read(),
+        ])
+        self.assertEqual(res.verdict, Verdict.DEFER)
+        self.assertEqual(res.predict_count, 1)
+
+    def test_one_earned_read_still_anchors(self):
+        # The zero-confidence path must not swallow a ground layer that has any
+        # earned weight at all.
+        gate = DeterminacyGate(epsilon=0.1)
+        res = gate.evaluate([self._unproven(300.0), _Stub(310.0, 0.95).bound_read()])
+        self.assertEqual(res.state_estimate, 310.0)
 
 
 class TestGrounding(unittest.TestCase):

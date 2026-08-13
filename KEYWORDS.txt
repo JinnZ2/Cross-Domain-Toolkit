@@ -1,0 +1,29 @@
+falsification ledger
+refutation protocol
+claim verification
+falsifiability gate
+hash-chained audit log
+tamper-evident record
+sensor fusion
+multi-substrate calibration
+confidence binding
+determinacy gate
+epsilon-determinacy
+grounding vs prediction
+unit commensurability
+cascade regime audit
+six-signal early-warning detector
+critical slowing down
+variance inflation
+flickering
+diversity collapse
+coherence under contradiction
+spinodal threshold (2/sqrt(27))
+saddle-node bifurcation
+cusp catastrophe
+tipping point
+model collapse detection
+institutional fragility
+AI grounding
+stdlib-only Python
+no dependencies

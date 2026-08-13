@@ -114,9 +114,12 @@ result = gate.evaluate([probe_a.bound_read(), probe_b.bound_read()])
 
 - `substrate.py` — the intake contract: `SubstrateReading`, `Role`,
   `Calibration`, `Substrate`, `make_reading`.
-- `determinacy_gate.py` — substrate-agnostic fusion + the Lε decision.
+- `determinacy_gate.py` — substrate-agnostic routing + the Lε decision.
+- `fusion.py` — the pure fusion math (`combine_independent`, `weighted_mean`,
+  `fuse_ground`, `contradiction_drain`), split out so the gate reads as
+  "fuse → decide" and the agreement-vs-drain policy is testable on its own.
 - `examples/thermal_substrate.py` — a GROUND substrate, end to end.
 - `examples/acoustic_substrate.py` — a PREDICT substrate; shows a contradicting
   forecast draining determinacy.
-- `tests/test_multi_substrate.py` — `python -m unittest
-  multi_substrate_calibration.tests.test_multi_substrate`
+- `tests/test_multi_substrate.py`, `tests/test_fusion.py`,
+  `tests/test_examples.py` — `python -m unittest discover -p 'test_*.py'`

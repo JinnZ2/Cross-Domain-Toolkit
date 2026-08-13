@@ -129,6 +129,25 @@ class DeterminacyGate:
             [(r.value, r.bound_confidence) for r in ground]
         )
 
+        # Every ground read bound to zero confidence (an unproven substrate, whose
+        # reliability discounts its loudest claim to nothing) leaves no weight to
+        # average: there is no state estimate to bound-check or hold a prediction
+        # against. That is a DEFER, not an error and not a state of zero.
+        if state is None:
+            return GateResult(
+                verdict=Verdict.DEFER,
+                state_estimate=None,
+                determinacy=0.0,
+                epsilon=self.epsilon,
+                reason=(
+                    "every GROUND read bound to zero confidence: the reads carry "
+                    "no earned weight, so nothing anchors the present state"
+                ),
+                ground_count=len(ground),
+                predict_count=len(predict),
+                conflict=0.0,
+            )
+
         # --- Lower-layer constraint: the fused state must be physically possible. ---
         if self.bounds is not None and not (self.bounds[0] <= state <= self.bounds[1]):
             return GateResult(
@@ -156,31 +175,32 @@ class DeterminacyGate:
         )
         determinacy = ground_determinacy * (1.0 - conflict)
 
-        threshold = 1.0 - self.epsilon
-        if determinacy >= threshold:
-            verdict = Verdict.DETERMINATE
-            reason = "determinacy within epsilon of certainty"
-        else:
-            verdict = Verdict.DEFER
-            gap = threshold - determinacy
-            if conflict > 0.0:
-                reason = (
-                    "PREDICT read contradicts fused GROUND state "
-                    f"(conflict drain {conflict:.3f}, gap {gap:.3f}); resolve before acting"
-                )
-            else:
-                reason = (
-                    f"insufficient grounding (gap {gap:.3f}); "
-                    "add GROUND reads or widen epsilon"
-                )
-
-        return GateResult(
-            verdict=verdict,
+        # Build the result first, then let it explain itself: the shortfall quoted
+        # in a DEFER reason is `GateResult.gap` itself, so the number the caller
+        # reads in the message and the number they can compute from the result can
+        # never drift apart.
+        result = GateResult(
+            verdict=(Verdict.DETERMINATE if determinacy >= 1.0 - self.epsilon
+                     else Verdict.DEFER),
             state_estimate=state,
             determinacy=determinacy,
             epsilon=self.epsilon,
-            reason=reason,
+            reason="",
             ground_count=len(ground),
             predict_count=len(predict),
             conflict=conflict,
         )
+        if result.verdict is Verdict.DETERMINATE:
+            result.reason = "determinacy within epsilon of certainty"
+        elif conflict > 0.0:
+            result.reason = (
+                "PREDICT read contradicts fused GROUND state "
+                f"(conflict drain {conflict:.3f}, gap {result.gap:.3f}); "
+                "resolve before acting"
+            )
+        else:
+            result.reason = (
+                f"insufficient grounding (gap {result.gap:.3f}); "
+                "add GROUND reads or widen epsilon"
+            )
+        return result

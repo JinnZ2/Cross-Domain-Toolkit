@@ -11,13 +11,39 @@ executed and works, including the single-method and single-class invocations.
 _This file supersedes the earlier review (whose items were resolved in commits
 `05dbd43` and prior); that version remains in git history._
 
+> ### Resolution status
+>
+> **Everything below is fixed except the two items that require GitHub settings**
+> (repository topics and the repo description — §5.3). The suite grew from 82 to
+> **93 tests**, all passing; all nine examples still run clean.
+>
+> | finding | resolution |
+> |---|---|
+> | D1 zero-confidence crash | fixed — `evaluate` DEFERs with a stated reason; 4 tests |
+> | D2 wrong Python floor | fixed — 3.8 in README, CONTRIBUTING, CLAUDE.md, `symbolic.py` |
+> | D3/D4 unused imports | removed; a repo-wide AST scan now finds none |
+> | D5 dead `gap` property | fixed — DEFER reasons quote `result.gap` itself |
+> | D6 `__init__` docstring | rewritten; `Kernel` now exported (15 names) |
+> | D7 stale Files list | `fusion.py` + the two new test modules listed |
+> | D8 half-applied aliases | canonical names stated; aliases documented as such |
+> | D9 asymmetric guards | `restate()` now re-runs all three guards |
+> | §3 missing tests | all five added (11 new cases) |
+> | §5.1 `CITATION.cff` | corrected author block, `type`, `url`, full keywords |
+> | §5.2 `KEYWORDS.txt` | `KEYWORDS.md` renamed and rewritten one-term-per-line |
+> | §5.4 badges | license / Python / dependencies badges added |
+> | §5.3 topics + description | **open — needs you** (see below) |
+>
+> One item found while fixing, not in the original review: `CLAUDE.md` had a
+> one-off review prompt pasted into it (lines 105–133). Since that file is loaded
+> as guidance in every session, the stale request was removed.
+
 | Section | Result |
 |---|---|
 | 1. Structural consistency with CLAUDE.md | **Clean** — no violations |
-| 2. Defects | 9 (1 high, 1 medium, 7 low/info) |
-| 3. Missing tests for documented entry points | 5 |
+| 2. Defects | 9 (1 high, 1 medium, 7 low/info) — all fixed |
+| 3. Missing tests for documented entry points | 5 — all added |
 | 4. Documentation gaps | **Clean** — all four checks pass |
-| 5. Discoverability | 4 gaps, snippets below |
+| 5. Discoverability | 4 gaps — 3 fixed, topics open |
 
 ---
 
@@ -351,14 +377,34 @@ current by hand or drop it; a stale count is worse than none.
 
 ---
 
-## Suggested order of work
+## What's left, and what to do next
 
-1. **D1** — the only defect that raises on a documented configuration.
-2. **D2** — the version floor, since it silently breaks the newest feature on the
-   oldest supported interpreter.
-3. §5.3 topics + description, §5.4 badges, §5.1 `CITATION.cff` — five minutes,
-   all discoverability.
-4. **D3–D8** — small, mechanical, and each has a one-line fix.
-5. §3 tests 1–3, which pin **D1** and **D5** so they cannot come back.
+**Blocked on you (2 minutes, GitHub UI):** set the repository topics and replace
+the description — both in §5.3 above. Neither can be done from the repo; they
+live in **Settings → About**. This is the single highest-leverage item left,
+because it's the only one that changes whether the repo is *found*.
+
+**Worth doing next, in order:**
+
+1. **Tag `v0.1.0` and cut a release.** `CITATION.cff` already claims version
+   `0.1.0` and a release date, but no tag exists — so the citation points at a
+   version nobody can check out. A tag also gives Zenodo something to mint a DOI
+   against, which is what makes the CFF file actually useful.
+2. **Add CI** (`.github/workflows/test.yml`): run `python -m unittest discover`
+   on 3.8 through 3.13. The toolkit's whole promise is "no dependencies, runs
+   anywhere" — a matrix build is how that stays true, and it would have caught
+   **D2** mechanically instead of by inspection.
+3. **Decide the `bounds`/units contract deliberately.** The gate currently
+   *raises* `ValueError` on incommensurable units but *returns* DEFER on a bounds
+   escape. Both are defensible, but the split means a caller needs two error
+   paths for what is arguably one condition ("these reads don't cohere"). Worth a
+   paragraph in the package README either way.
+4. **Consider a fourth guard for the ledger: observation provenance.**
+   `Observation.source` is a free-text string with no structure, while
+   `SubstrateReading` next door has a real `provenance` dict. Since the ledger's
+   entire value proposition is "the record is verifiable," the weakest link is
+   now the unverifiable claim about *where a number came from*.
+5. **`docs/METHOD.md` is the best-written file in the repo** and nothing outside
+   the README links to it. Link it from each package README's header.
 
 _End of review._
