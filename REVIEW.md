@@ -1,461 +1,364 @@
 # Repository Review — Cross-Domain-Toolkit
 
-_Reviewed at branch `claude/claude-md-docs-h2hwb5`. All line numbers refer to the
-files as they existed **at review time**. Behavioural findings were confirmed by
-running the code, not inferred._
+_Reviewed against `CLAUDE.md` on branch `claude/new-session-207rva`. Every
+behavioural claim below was confirmed by running the code on Python 3.11.15, not
+inferred. Line numbers refer to the files at review time._
 
-> **Resolution status (updated after fixes).** All of Section 1 (inconsistencies),
-> all of Section 3 (code audit), all of Section 2 (markdown gaps), and most of
-> Section 6 (discoverability) have been addressed in follow-up commits; the test
-> suite grew from 22 to 68 cases. Finding 3.3 was fixed with a defensive copy
-> rather than `MappingProxyType` (the latter breaks `dataclasses.asdict`, which
-> the ledger's `digest()`/`to_json()` rely on — verified empirically).
->
-> **Section 5 — now fully implemented.** 5.2 grounding: the gate enforces unit
-> commensurability and optional physical `bounds` (a fused estimate outside them
-> DEFERs). 5.4 falsifiability: `Claim.refutation_set` + `is_falsifiable` +
-> `classify_falsifiability`, a `strict_falsifiable` ledger mode, an
-> `extraordinary`-claim higher bar, and an `escape_hatch_flag()` /
-> `survival_by_version()` refutation-velocity detector. 5.3 semantic ambiguity:
-> `Claim.scope` + `reference_class`, `classify_specificity` / `find_vague_terms`,
-> and a `strict_scope` ledger mode. 5.1 symbolic/subsymbolic: `Claim.logical_form`
-> checked each record by a safe stdlib evaluator (`symbolic.py`, no `eval`) or a
-> pluggable `checker=` solver hook, with `entry.logical_ok` in the hash chain and
-> a `strict_symbolic` mode (see `examples/symbolic_form.py`).
->
-> **Section 4 — now implemented.** 4.1 fusion math extracted to
-> `multi_substrate_calibration/fusion.py` (gate reads as fuse→decide); 4.2
-> `Makefile`; 4.3 shared `docs/METHOD.md` (linked from the README); 4.4 `py.typed`
-> markers on all three packages; 4.5 `CONTRIBUTING.md`; 4.6 reference mappers
-> extracted to `cascade_regime_audit/mappers.py` (with `abs_skew` /
-> `coefficient_of_variation` added), examples left as thin drivers. The public
-> API is unchanged (backward-compatible re-exports). Line numbers below are
-> pre-fix and may have shifted. The only remaining review item is Section 6
-> repository topics, which require a manual GitHub setting.
+**Baseline:** `python -m unittest discover -p 'test_*.py'` → **82 tests, OK**. All
+nine example modules run clean. Every command in `CLAUDE.md` ("Commands") was
+executed and works, including the single-method and single-class invocations.
 
-## Findings summary
+_This file supersedes the earlier review (whose items were resolved in commits
+`05dbd43` and prior); that version remains in git history._
 
-| Section | Findings |
+| Section | Result |
 |---|---|
-| 1. Inconsistencies | 4 |
-| 2. Markdown Information Gaps | 7 |
-| 3. Code Audit | 10 |
-| 4. Organizational Structure | 6 |
-| 5. Limitations Mitigation | 5 items (at review: 0 fully addressed; **now: all 5 implemented** — see banner) |
-| 6. Discoverability & Crawler Optimization | 9 |
+| 1. Structural consistency with CLAUDE.md | **Clean** — no violations |
+| 2. Defects | 9 (1 high, 1 medium, 7 low/info) |
+| 3. Missing tests for documented entry points | 5 |
+| 4. Documentation gaps | **Clean** — all four checks pass |
+| 5. Discoverability | 4 gaps, snippets below |
 
 ---
 
-## 1. Inconsistencies
+## 1. Structural consistency with CLAUDE.md
 
-**1.1 — Unused import `Sequence`** · `multi_substrate_calibration/substrate.py:42`
-`from typing import Callable, Optional, Sequence` — `Sequence` is never
-referenced in the file. Fix:
+All four structural rules hold. Nothing to fix here.
+
+- **True packages with re-exporting `__init__.py`:** all three. Each declares an
+  explicit `__all__` and a `py.typed` marker.
+- **`examples/` and `tests/` subpackages:** present in all three, each with an
+  `__init__.py` (empty, as intended).
+- **"The core never imports its plugins":** **upheld everywhere.** No module
+  under a package root imports from that package's `examples/`.
+  `determinacy_gate.py` imports only `.fusion` and `.substrate` (the contract),
+  never a substrate; `cascade_audit.py` imports nothing from the package at all
+  and does not even import `mappers.py` — the comment at `cascade_audit.py:111`
+  states the inversion explicitly. The only cross-example import is
+  `examples/acoustic_substrate.py` → `ThermalProbe`, which is example→example and
+  is what makes the GROUND/PREDICT contradiction demo work.
+- **stdlib-only:** verified by a full import scan. The complete third-party
+  surface is empty; the whole toolkit imports only `ast`, `dataclasses`, `enum`,
+  `hashlib`, `json`, `math`, `operator`, `time`, `typing`, and `unittest`.
+
+---
+
+## 2. Defects
+
+### D1 — `DeterminacyGate.evaluate` crashes on all-zero-confidence GROUND reads · **high**
+`fusion.py:29-34` · `determinacy_gate.py:128-133, 153`
+
+`weighted_mean` returns `None` when the weights sum to `≤ 0`, so `fuse_ground`
+returns `(None, 0.0)`. `evaluate` then uses that `state` unguarded. Two crash
+paths, both reproduced:
+
 ```python
-from typing import Callable, Optional
+g = BoundReading(SubstrateReading(300.0, 0.0, Role.GROUND, "thermal", "K"), 0.0)
+DeterminacyGate(bounds=(0.0, 1000.0)).evaluate([g])
+# TypeError: '<=' not supported between instances of 'float' and 'NoneType'
+DeterminacyGate(predict_tolerance=2.0).evaluate([g, predict_read])
+# TypeError: unsupported operand type(s) for -: 'float' and 'NoneType'
 ```
 
-**1.2 — Documented contract contradicts actual behaviour: agreeing PREDICT reads
-raise determinacy** · `multi_substrate_calibration/determinacy_gate.py:14-17,
-133, 139`
-The module docstring states PREDICT reads "are NOT fused into the present" and a
-prediction is only ever a *drain*, never "a boost." But an agreeing prediction is
-added to `agree_conf` (line 133) and folded into `_combine_independent` (line
-139), which **raises** determinacy. Confirmed empirically:
+This is reachable through a **documented, supported** configuration: `substrate.py:84-86`
+and both READMEs promise that an unproven substrate (`reliability → 0`) "cannot
+dominate the gate no matter how loudly it reports certainty." Binding such a read
+yields `bound_confidence = 0.0`, and one of those is enough. Without `bounds` and
+without a PREDICT read it happens to survive (it DEFERs with
+`state_estimate=None`, which is correct), so the bug is invisible in the
+narrowest path only. Fix — treat "no confidence anywhere in the ground layer" as
+its own DEFER, right after the fuse at `determinacy_gate.py:128`:
 
-| reads | determinacy | verdict |
-|---|---|---|
-| one GROUND @ conf 0.7 | 0.70 | DEFER |
-| same GROUND + agreeing PREDICT @ 0.9 | 0.97 | **DETERMINATE** |
-
-A forecast that merely agrees with a single weak ground read flips the gate from
-"defer" to "act" — precisely the "forecast laundered into an observation" the
-design says it prevents. Either document that agreement corroborates (and soften
-the docstring), or cap agreement so it cannot exceed what the ground earned:
 ```python
-determinacy = ground_determinacy
-if agree_conf:
-    # corroboration may reassure, but must not manufacture determinacy the
-    # ground layer did not itself establish
-    determinacy = min(1.0, ground_determinacy + (1.0 - ground_determinacy)
-                      * max(agree_conf) * 0.5)   # or drop the boost entirely
-determinacy *= (1.0 - conflict)
+state, ground_determinacy = fuse_ground([(r.value, r.bound_confidence) for r in ground])
+if state is None:
+    return GateResult(
+        verdict=Verdict.DEFER, state_estimate=None, determinacy=0.0,
+        epsilon=self.epsilon,
+        reason="every GROUND read bound to zero confidence: nothing is anchored",
+        ground_count=len(ground), predict_count=len(predict), conflict=0.0,
+    )
 ```
 
-**1.3 — `GateResult.gap` is dead surface** · `determinacy_gate.py:58-61`
-The `gap` property is defined but never used in any `reason` string, example, or
-test. Either surface it in the DEFER reason (`f"...gap {result.gap:.3f}"`) or
-remove it. Currently it silently duplicates logic already implied by
-`determinacy` and `epsilon`.
+### D2 — The stated Python floor (3.7) is wrong; `symbolic.py` needs 3.8 · **medium**
+`README.md:20, 68` · `CONTRIBUTING.md:7` · `falsification_ledger/symbolic.py:57`
 
-**1.4 — Duplicate identically-named example helper** · `cascade_regime_audit/examples/model_collapse.py:16`
-and `cascade_regime_audit/examples/institutional_fragility.py:16`
-Both define `def read_signals(...)` with the same name but different bodies. Not a
-runtime conflict (separate modules), but it invites copy-paste confusion. Minor;
-consider `read_model_signals` / `read_institution_signals` for grep-ability.
+`_eval` dispatches literals on `ast.Constant`. CPython's parser did not emit
+`ast.Constant` for literals until 3.8 — on 3.7 `ast.parse("a > 0")` produces an
+`ast.Num` node, which falls through every branch and raises
+`LogicalFormError("construct Num is not permitted")`. So on 3.7 any logical form
+containing a number — i.e. essentially all of them, including the README's own
+`"a > 0 and abs(residual) <= tol"` — fails. (Verified on 3.11 here; 3.7 is not
+installable in this environment, so this rests on the documented parser change,
+not on execution.) Everything else in the repo is genuinely 3.7-safe. Cheapest
+fix is to state the real floor in `README.md`, `CONTRIBUTING.md`, and `CLAUDE.md`:
 
----
+```
+Requires Python ≥ 3.8 (no third-party dependencies).
+```
 
-## 2. Markdown Information Gaps
+### D3 — Unused import `field` · **low**
+`cascade_regime_audit/cascade_audit.py:44` — `from dataclasses import dataclass, field`;
+no `field(...)` call exists in the module (the word only appears in prose). Drop it.
 
-**2.1 — No stated minimum Python version.** README and CLAUDE.md say "stdlib-only
-Python 3" but the code uses `from __future__ import annotations` and dataclasses
-(3.7+) and f-strings (3.6+). _Intent:_ tell a forker what interpreter they need.
-Add "Requires Python ≥ 3.7 (no third-party dependencies)" to the README Running
-section.
+### D4 — Unused import `LogicalFormError` · **low**
+`falsification_ledger/ledger.py:38` imports `LogicalFormError` and never
+references it. The package re-export at `__init__.py:20` comes straight from
+`.symbolic`, so removing it from `ledger.py` changes no public surface.
 
-**2.2 — `predict_tolerance` semantics undocumented.** `multi_substrate_calibration/README.md`
-mentions the gate but never states that `predict_tolerance` must be positive, is
-in the units of the ground state's scale, and controls the agree/drain boundary.
-_Intent:_ a user wiring a PREDICT substrate needs this to set the knob. Document
-it alongside `epsilon`.
+### D5 — `GateResult.gap` is still dead surface · **low**
+`determinacy_gate.py:59-62` defines `gap`; `evaluate` then recomputes the same
+quantity as a local at line 165 for its reason strings. The property is
+referenced by no module, example, or test. Use it and delete the local:
 
-**2.3 — Agreement-boost behaviour not mentioned in package README.** Tied to
-finding 1.2: the README says predictions are "held against" the ground but omits
-that an agreeing prediction raises determinacy. _Intent:_ the README should match
-whatever behaviour is settled on.
-
-**2.4 — Lineage references have no links.** `README.md` "Lineage" and
-`CLAUDE.md` "Lineage" name `JinnZ2/JinnZ2`, `field_collapse.py`,
-`ai-human-audit-protocol`, `monoculture_collapse_predictor` but link to none of
-them. _Intent:_ let a reader follow the sources of truth. Add URLs.
-
-**2.5 — Helper functions documented but never demonstrated.** `cascade_regime_audit/README.md`
-advertises `slowing_down_from_series` and `variance_inflation_from_series`, but
-no example calls them. _Intent:_ show the raw-series → signal mapping. Add a short
-snippet or an example that feeds a time series.
-
-**2.6 — No CONTRIBUTING / CHANGELOG.** For a toolkit explicitly meant to be
-forked and extended ("New domains live in `examples/`"), there is no note on how
-to add an example, run tests, or what "done" looks like. _Intent:_ smooth
-onboarding. A 10-line `CONTRIBUTING.md` would suffice (see 4.5).
-
-**2.7 — Hash-chain guarantee is overstated without a caveat.** `falsification_ledger/README.md`
-("a quietly rewritten prediction breaks the chain") is true for a *partial* edit,
-but a holder with write access can recompute the entire chain from any point —
-there is no signature or external anchor. _Intent:_ be honest about the threat
-model. Add: "The chain is tamper-**evident** against edits to existing history,
-not tamper-**proof**: a party who can rewrite the whole file can rebuild every
-hash. For non-repudiation, sign `verify()`'s head hash or anchor it externally."
-
----
-
-## 3. Code Audit
-
-**3.1 — `predict_tolerance` is not validated; ≤ 0 silently breaks the gate**
-· `multi_substrate_calibration/determinacy_gate.py:95-99, 131` — **bug (high)**
-`__init__` validates `epsilon` but not `predict_tolerance`. Confirmed: with
-`predict_tolerance=-2.0`, a PREDICT read of 500 against a ground state of 5
-yields `determinacy=1.0, conflict=0.0, verdict=DETERMINATE` — a gross
-contradiction reported as certainty. With `predict_tolerance=0.0`, line 131's
-`... if self.predict_tolerance else 0.0` sets `dist=0`, so **every** prediction
-counts as perfect agreement. Fix:
 ```python
-def __init__(self, epsilon: float = 0.1, predict_tolerance: float = 1.0) -> None:
-    if not 0.0 < epsilon < 1.0:
-        raise ValueError(f"epsilon must be in (0, 1), got {epsilon}")
-    if predict_tolerance <= 0.0:
-        raise ValueError(f"predict_tolerance must be > 0, got {predict_tolerance}")
-    self.epsilon = epsilon
-    self.predict_tolerance = predict_tolerance
+gap = result_gap = threshold - determinacy   # or simply build GateResult first
 ```
-Then line 131 simplifies to `dist = abs(p.value - state) / self.predict_tolerance`.
 
-**3.2 — Agreeing prediction can manufacture determinacy** · `determinacy_gate.py:133,139`
-— **logic bug (medium)**. See finding 1.2 for the confirmed DEFER→DETERMINATE
-flip and the suggested cap.
+Simplest: keep the property and have the DEFER branch read `(1 - epsilon) - determinacy`
+once — the two must not be allowed to drift apart.
 
-**3.3 — `Claim` is `frozen=True` but `params` is a mutable dict** · `falsification_ledger/ledger.py:41-56`
-— **integrity gap (medium)**. `frozen=True` blocks attribute reassignment but not
-in-place mutation: `led.claim.params["g"] = 999` bypasses the refutation protocol
-for the live (not-yet-recorded) claim. Recorded entries are protected by the hash
-chain, but the invariant "params only change via `refute()`" is not enforced on
-the current claim. Fix: store params behind a read-only view.
+### D6 — `falsification_ledger/__init__.py` docstring lists half the public surface · **low**
+`falsification_ledger/__init__.py:1-5` names seven exports; `__all__` exports
+fourteen. Missing from the docstring: `SCOPE_DIMENSIONS`, `classify_falsifiability`,
+`classify_specificity`, `find_vague_terms`, `Checker`, `LogicalFormError`,
+`evaluate_logical_form`. The other two packages' docstrings do match their
+`__all__`, so this is the odd one out. Replace with:
+
+```
+Public surface:
+    Claim, Prediction, Observation, Mismatch, LedgerEntry, Ledger, RefutationError
+    guards: SCOPE_DIMENSIONS, classify_falsifiability, classify_specificity,
+            find_vague_terms
+    symbolic: Checker, LogicalFormError, evaluate_logical_form
+```
+
+Note also that `Observation` appears in `__all__` but not in the docstring list,
+and the `Kernel` type alias (`ledger.py:41`) is public-by-use but unexported —
+worth adding if forkers are meant to type their kernels.
+
+### D7 — `multi_substrate_calibration/README.md` "Files" omits `fusion.py` · **low**
+The Files section lists `substrate.py`, `determinacy_gate.py`, both examples, and
+`tests/test_multi_substrate.py`, but not `fusion.py` or `tests/test_fusion.py`,
+both added in the extraction refactor. `CLAUDE.md`'s layout table already lists
+`fusion.py`, so the package README is the stale one.
+
+### D8 — Half-applied alias convention in `mappers.py` · **low**
+`mappers.py:87-96` keeps `slowing_down_from_series` / `variance_inflation_from_series`
+as back-compat aliases for `lag1_autocorr` / `normalized_variance`, so S1 and S2
+have two public names each while `abs_skew` and `coefficient_of_variation` (S3,
+S4) have one. Six exported names for four functions, and a reader can't tell
+which is canonical. Either alias all four or mark the two aliases deprecated in
+their docstrings and point at the canonical name.
+
+### D9 — Asymmetric guard re-checks in `restate()` · **info**
+`ledger.py:445` re-runs `_require_specific` on the revised claim but not
+`_require_falsifiable` or `_require_symbolic`, while `refute()` (`:419-421`) runs
+all three. Harmless today — `restate` inherits `refutation_set` and `logical_form`
+unchanged from the claim `refute()` just validated — but the asymmetry is a trap
+the moment `restate` gains the ability to revise those fields.
+
+---
+
+## 3. Missing tests for documented entry points
+
+The suite is strong (82 cases) and covers each package's headline behaviour. The
+gaps:
+
+1. **`GateResult.gap`** — a public property with no test at all (see D5).
+2. **The `state is None` path through `evaluate`** — `test_fusion.TestWeightedMean.test_zero_weight_returns_none`
+   covers `weighted_mean` in isolation, but nothing drives that return value
+   through the gate, which is why D1 survived.
+3. **`Substrate.bound_read` modality mismatch** (`substrate.py:152-154`) — the
+   sibling role-mismatch branch is tested (`test_role_mismatch_rejected`); the
+   modality branch is not.
+4. **`Ledger.check_logical_form`** — a public method exercised only indirectly
+   through `record()`; no test calls it with an explicit binding.
+5. **Example smoke tests** — `CONTRIBUTING.md` tells contributors "Add a test
+   under `your_package/tests/test_*.py`" for each new example, but no test
+   imports or runs any of the nine existing examples. A ~10-line test per package
+   that runs each example module would make that rule self-enforcing:
+
 ```python
-from types import MappingProxyType
-def __post_init__(self):
-    object.__setattr__(self, "params", MappingProxyType(dict(self.params)))
+import runpy, unittest
+
+class TestExamplesRun(unittest.TestCase):
+    def test_examples_execute(self):
+        for name in ("model_collapse", "institutional_fragility"):
+            runpy.run_module(f"cascade_regime_audit.examples.{name}",
+                             run_name="__main__")
 ```
-(then `refute`/`restate` already pass a fresh `dict(new_params)`).
-
-**3.4 — `CascadeAudit.__init__` validates nothing** · `cascade_regime_audit/cascade_audit.py:157-163`
-— **robustness (medium)**. `fire_threshold`, `pressure_threshold`, and
-`spinodal` accept any float; there's no check they're in `[0, 1]` (thresholds) or
-`> 0` (spinodal). A caller passing `pressure_threshold=50` silently never fires
-`STRESSED`/`CASCADE`. Fix: add range checks mirroring `SignalReads.__post_init__`.
-
-**3.5 — Unknown/typo'd weight keys are silently dropped** · `cascade_audit.py:163,167,170`
-— **silent failure (low/medium)**. `self.weights.get(n, 0.0)` iterates over
-`SIGNAL_NAMES`, so a weights dict with a misspelled key (`"vareince_inflation"`)
-contributes nothing and is never flagged; the mistyped signal just gets weight 0.
-Fix: validate keys on construction.
-```python
-if weights:
-    unknown = set(weights) - set(SIGNAL_NAMES)
-    if unknown:
-        raise ValueError(f"unknown signal weights: {sorted(unknown)}")
-```
-
-**3.6 — All-zero weights yield `pressure=0` with no warning** · `cascade_audit.py:167-170`
-— **robustness (low)**. `weights={n: 0 for n in ...}` returns pressure 0.0 for any
-signal, quietly disabling the detector. The `wsum <= 0` guard prevents a
-ZeroDivisionError but masks the misconfiguration. Consider raising instead of
-returning 0.
-
-**3.7 — `restate()` has no test coverage** · `falsification_ledger/ledger.py:223-239`
-— **missing test (medium)**. It is part of the public surface (referenced by
-docstring) yet exercised by no test. It also mutates `self._claims[-1]` after
-`refute()` appended it; a regression here would silently corrupt claim history.
-Add a test asserting version/parent/statement and `verify()` still True.
-
-**3.8 — Thin test coverage on error and serialization paths** · **missing tests (medium)**.
-No test covers: negative/zero `predict_tolerance` (3.1); `Ledger.to_json()`
-round-trip / determinism; `variance_inflation_from_series`; the `provenance`
-plumbing in `make_reading`; `CascadeAudit` threshold validation. These are the
-paths most likely to regress silently.
-
-**3.9 — `_normalized_variance` mapping is arbitrary and undocumented** · `cascade_audit.py`
-`variance_inflation_from_series` → `1 - 1/ratio` — **maintainability (low)**. The
-squashing curve is not derived or explained; a maintainer can't tell whether
-`0.5` at `ratio=2` is intentional. Add a one-line rationale or cite the
-early-warning literature it approximates.
-
-**3.10 — No security issues found in the conventional sense.** stdlib-only; no
-`eval`/`exec`, no subprocess, no network, no file writes, no deserialization of
-untrusted input, no secrets. `json.dumps(..., default=str)` on the ledger is
-safe. The only "security-adjacent" concern is the ledger threat model
-(non-repudiation), covered in 2.7.
 
 ---
 
-## 4. Organizational Structure Suggestions
+## 4. Documentation gaps
 
-_All items below are now implemented — see the resolution banner at the top._
+All four checks pass; no gaps found.
 
-**4.1 — Split `multi_substrate_calibration` fusion math out of the gate.** The
-`_combine_independent` / `_weighted_mean` helpers plus the PREDICT scoring in
-`determinacy_gate.py:64-140` mix _fusion policy_ with _decision policy_. Extract
-fusion into `fusion.py` so the Lε decision in `DeterminacyGate.evaluate` reads as
-"fuse → decide." _Why:_ the agreement-vs-drain logic (findings 1.2/3.2) is where
-the subtle bugs live; isolating it makes it independently testable.
+- **A worked example per package mapping a real domain onto the abstract
+  surface:** yes, nine of them — `multi_substrate_calibration` (thermal GROUND,
+  acoustic PREDICT), `falsification_ledger` (physics, ecology, AI behavior, plus
+  the falsifiability-gate and symbolic-form walkthroughs), `cascade_regime_audit`
+  (model collapse, institutional fragility). Each maps a named domain, each is
+  runnable, each runs clean.
+- **The refutation protocol:** described in three places consistently — the
+  `ledger.py` module docstring, `falsification_ledger/README.md` ("The one rule
+  it enforces"), and `docs/METHOD.md` §2. The README also carries an honest
+  **threat model** paragraph distinguishing tamper-evident from tamper-proof,
+  which is the right caveat and is rarely present in work like this.
+- **The six signals:** named and explained twice — as an annotated list in the
+  `cascade_audit.py` module docstring (S1–S6) and as a table in
+  `cascade_regime_audit/README.md`, with the non-obvious one
+  (`coherence_under_contradiction`: rising coherence is a *red* signal) called
+  out in both. `SIGNAL_NAMES` matches the `SignalReads` field names exactly.
+- **README package summaries and the public API import example:** all three
+  packages get a one-line summary and a linked heading, and the "Quick import"
+  block covers all three entry points. Verified: every symbol in that block
+  imports.
 
-**4.2 — Add a top-level `tests/` aggregation or a `Makefile`/`tox.ini`.** Tests
-live under each package (`*/tests/`), which is fine, but there is no single
-canonical entry beyond the discover command. A 3-line `Makefile`
-(`test:` → `python -m unittest discover -p 'test_*.py'`) lowers onboarding
-friction. _Why:_ new contributors look for `make test` first.
-
-**4.3 — Promote the shared "refutation protocol" vocabulary into one place.** All
-three packages narrate the same philosophy (ground / refute / cascade) in prose
-headers. A short `docs/METHOD.md` (or a top-of-repo section) stating the shared
-method once, with each package linking to it, removes the triplicated
-explanation. _Why:_ single source of truth; the packages already gesture at a
-unifying idea.
-
-**4.4 — Consider a `py.typed` marker + consistent type exports.** The code is
-fully type-hinted but ships no `py.typed`, so downstream type-checkers ignore it.
-Adding an empty `py.typed` to each package makes the toolkit typecheck-friendly
-for forkers. _Why:_ cheap, and the annotations are already there.
-
-**4.5 — Add minimal `CONTRIBUTING.md` describing the "add an example" workflow.**
-The design rule "new domains live in `examples/`, not the core" is stated in
-CLAUDE.md but not where a contributor looks. _Why:_ codifies the one architectural
-constraint that keeps the core plugin-free.
-
-**4.6 — Keep `examples/` runnable but move reusable mapping helpers up.**
-`slowing_down_from_series` / `variance_inflation_from_series` live in the core
-(good), but the per-example `read_signals` mappers (findings 1.4) are the real
-reusable pattern. Consider a `cascade_regime_audit/mappers.py` with documented,
-tested reference mappers, leaving examples as thin drivers. _Why:_ examples become
-demonstrations, not the only home for mapping logic.
+Minor style note, not a gap: the YAML front matter at `README.md:1-9` renders as
+a metadata table on github.com rather than being hidden. It's deliberate (crawler
+bait) and harmless, but be aware it is visible to human readers.
 
 ---
 
-## 5. Limitations Mitigation Checklist
+## 5. Discoverability — status and ready-to-paste snippets
 
-_Treating the toolkit as an AI-grounding / claim-verification system
-(`falsification_ledger` + `multi_substrate_calibration` are the relevant cores)._
+| item | status |
+|---|---|
+| `CITATION.cff` | present, but the author block is malformed — fix below |
+| `KEYWORDS.txt` | a `KEYWORDS.md` exists; add `.txt` only if you want the plaintext form |
+| Repository topics | **not set** — no topics on the repo |
+| "Why This Matters" | **present** (`README.md:25-32`) — no action |
+| License badge | **missing** |
+| Repo description | `"Cross domain toolkit "` — generic, and has a trailing space |
 
-### 5.1 Symbolic–Subsymbolic Gap — **NOW ADDRESSED** _(logical_form + safe checker + pluggable solver hook; see banner)_
-- Explicit extraction of logical form: **missing.** `Claim.statement` is free
-  text (`ledger.py:44`); nothing parses it.
-- Connection to symbolic solvers: **missing.**
-- _Recommendation:_ add an optional `logical_form` field and a solver hook:
-  ```python
-  @dataclass(frozen=True)
-  class Claim:
-      statement: str
-      params: Dict[str, float]
-      logical_form: Optional[str] = None   # e.g. "forall x: R(x) = k * f(x)"
-      ...
-  # and a pluggable checker: Callable[[str], bool] the ledger can call before record()
-  ```
+### 5.1 `CITATION.cff` (replace the existing file)
 
-### 5.2 Grounding Problem — **PARTIALLY ADDRESSED** _(units + bounds now implemented; see banner)_
-- Units/dimensions checked: **partial.** `SubstrateReading.units` exists
-  (`substrate.py:61`) but is a documentation string only — never validated or
-  reconciled across fused reads. Two GROUND reads in different units fuse
-  silently.
-- Lower-layer constraints enforced: **missing.** No mechanism prevents a fused
-  estimate from violating a physical bound.
-- Meta-grounding flag for revolutionary claims: **missing.**
-- _Recommendation:_ enforce unit agreement in `DeterminacyGate.evaluate` before
-  fusing (`{r.reading.units for r in ground}` must be size 1, else raise), and add
-  a `bounds: Optional[Tuple[float,float]]` to the gate that DEFERs if the estimate
-  escapes. For revolutionary claims, add a `Claim.extraordinary: bool` that
-  requires a higher refutation bar.
+The current author block uses `name-particle: ""`, which is not a valid CFF value
+(the field must be omitted when empty), and a person entry without `given-names`
+is under-specified. For a pseudonymous author, an entity entry is the correct
+shape. Also adds `type`, `url`, and the missing `spinodal`/`determinacy` keywords:
 
-### 5.3 Semantic Ambiguity — **NOW ADDRESSED** _(scope + reference_class + vague-term detector + strict_scope; see banner)_
-- Vague terms quantified: **missing.** No mechanism forces "high", "fragile",
-  etc. into numbers (the cascade signals are numeric, but the _claims_ are not).
-- Scope (temporal/spatial/ontological) explicit: **missing.** `Claim` carries no
-  scope; `condition` is arbitrary.
-- Reference class specified: **missing.**
-- _Recommendation:_ add structured `scope: Dict[str, str]` and a required
-  `reference_class: str` to `Claim`; reject claims lacking them if a strict flag
-  is set.
-
-### 5.4 Falsifiability Paradox — **NOW ADDRESSED** _(refutation_set + classifier + strict mode + escape-hatch; see banner)_
-- Enumerate a refutation-observation set: **partial.** The ledger tests one
-  observation at a time against a tolerance (`ledger.py:171-193`) but never asks
-  the claim to _enumerate in advance_ what would refute it.
-- Escape-hatch detector: **missing.** Nothing detects a claim being repeatedly
-  re-parameterized to dodge every refutation (unbounded `refute()` chains are
-  allowed).
-- Falsifiable/unfalsifiable classifier: **missing.**
-- _Recommendation:_ require a `refutation_set: List[condition]` on `Claim` and
-  refuse to open a ledger for a claim with an empty one (an unfalsifiable claim);
-  track a "refutation velocity" and warn when a claim is updated more often than
-  it survives (the escape-hatch signal).
-
-### 5.5 Formal Verification vs. Complexity — **PARTIALLY ADDRESSED**
-- Formal proof scoped: **missing.** The hash chain is integrity, not proof.
-- Background knowledge accessible: **missing.** No knowledge base is wired in.
-- Probabilistic fallback with confidence: **addressed.** `DeterminacyGate`
-  produces a `determinacy` score and the Lε decision is an explicit probabilistic
-  gate (`determinacy_gate.py:139-145`); the ledger records tolerances. This is the
-  one sub-item genuinely covered.
-- _Recommendation:_ keep the determinacy/Lε path as the probabilistic fallback,
-  and scope any future formal check to the `logical_form` from 5.1 so proof is
-  attempted only where a formal form exists, with the determinacy score as the
-  documented fallback everywhere else.
-
----
-
-## 6. Discoverability & Crawler Optimization
-
-**6.1 — "What is this?" summary: PARTIAL.** The README opens with a good one-liner
-but it is prose-dense and light on high-signal keywords a crawler indexes
-(e.g. "early-warning signals", "critical transition", "tipping point",
-"calibration", "sensor fusion", "provenance"). Add a keyworded lead sentence:
-```markdown
-> **Cross-Domain-Toolkit** — stdlib-only Python instruments for **claim
-> falsification**, **sensor-fusion calibration**, and **cascade / tipping-point
-> (spinodal) detection**, portable across physics, ecology, and AI-behavior
-> domains.
-```
-
-**6.2 — Repository topics: NOT SET (add via GitHub UI/API).** Suggested topics:
-`python`, `stdlib`, `falsification`, `early-warning-signals`, `tipping-points`,
-`critical-transitions`, `sensor-fusion`, `calibration`, `ai-safety`,
-`claim-verification`, `spinodal`, `cascade-detection`.
-
-**6.3 — `KEYWORDS.md`: MISSING.** Ready to paste as `KEYWORDS.md`:
-```markdown
-# Keywords
-falsification ledger, refutation protocol, claim verification, hash-chained
-audit log, sensor fusion, multi-substrate calibration, confidence binding,
-determinacy gate, epsilon-determinacy, grounding vs prediction, cascade regime
-audit, six-signal early-warning detector, critical slowing down, variance
-inflation, flickering, diversity collapse, spinodal threshold (2/sqrt(27)),
-saddle-node bifurcation, tipping point, model collapse detection, institutional
-fragility, AI grounding, stdlib-only Python.
-```
-
-**6.4 — `CITATION.cff`: MISSING.** Ready to paste as `CITATION.cff`:
 ```yaml
 cff-version: 1.2.0
 message: "If you use this toolkit, please cite it."
 title: "Cross-Domain-Toolkit"
 abstract: "Portable, stdlib-only Python instruments for claim falsification,
   sensor-fusion calibration, and cascade/tipping-point detection."
+type: software
 authors:
-  - family-names: "JinnZ2"
-    name-particle: ""
+  - name: "JinnZ2"
+    alias: "JinnZ2"
 repository-code: "https://github.com/JinnZ2/Cross-Domain-Toolkit"
+url: "https://github.com/JinnZ2/Cross-Domain-Toolkit"
 license: MIT
 version: "0.1.0"
 date-released: "2026-07-08"
 keywords:
   - falsification
+  - refutation
+  - scientific-audit
   - early-warning-signals
   - tipping-points
+  - spinodal
   - sensor-fusion
+  - determinacy
+  - grounding
   - ai-grounding
+  - python-stdlib
 ```
 
-**6.5 — "Why This Matters" / urgency statement: MISSING.** Ready to paste into the
-README:
+### 5.2 `KEYWORDS.txt`
+
+`KEYWORDS.md` already carries this content. If you want the plaintext file the
+brief asks for, keep **one** of the two as canonical to avoid drift — the `.txt`
+below is the same list, one term per line, which is friendlier to `grep` and to
+crawlers than a prose blob:
+
+```
+falsification ledger
+refutation protocol
+claim verification
+hash-chained audit log
+sensor fusion
+multi-substrate calibration
+confidence binding
+determinacy gate
+epsilon-determinacy
+grounding vs prediction
+cascade regime audit
+six-signal early-warning detector
+critical slowing down
+variance inflation
+flickering
+diversity collapse
+spinodal threshold (2/sqrt(27))
+saddle-node bifurcation
+tipping point
+model collapse detection
+institutional fragility
+AI grounding
+stdlib-only Python
+```
+
+### 5.3 Repository topics
+
+Not currently set. Suggested set (GitHub allows up to 20; these are all real,
+searched topics):
+
+```
+falsifiability  scientific-audit  refutation  spinodal  sensor-fusion
+determinacy  grounding  python-stdlib  early-warning-signals  tipping-points
+critical-transitions  cascade-detection  model-collapse  ai-safety
+claim-verification  hash-chain  no-dependencies
+```
+
+Set them in **Settings → About → Topics**, or:
+
+```bash
+gh api -X PUT repos/JinnZ2/Cross-Domain-Toolkit/topics \
+  -f names[]=falsifiability -f names[]=scientific-audit -f names[]=refutation \
+  -f names[]=spinodal -f names[]=sensor-fusion -f names[]=determinacy \
+  -f names[]=grounding -f names[]=python-stdlib -f names[]=early-warning-signals \
+  -f names[]=tipping-points -f names[]=critical-transitions \
+  -f names[]=cascade-detection -f names[]=model-collapse -f names[]=ai-safety \
+  -f names[]=claim-verification -f names[]=hash-chain -f names[]=no-dependencies
+```
+
+While there, replace the description with something a search result can use:
+
+```
+Stdlib-only Python instruments for claim falsification, sensor-fusion
+calibration, and cascade/tipping-point (spinodal) detection — portable across
+physics, ecology, and AI-behavior domains.
+```
+
+### 5.4 License and status badges
+
+Paste directly under the `# Cross-Domain-Toolkit` heading in `README.md`:
+
 ```markdown
-## Why this matters
-Systems fail quietly: a model trained on its own output loses diversity before
-its metrics move; an institution consolidates authority before it visibly breaks;
-a claim gets retuned to fit noise instead of being refuted. These tools make each
-of those moments **legible and on-the-record** — grounded reads, tamper-evident
-refutations, and a structural signal for when the alternative state is already
-gone.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none%20(stdlib%20only)-brightgreen.svg)](CONTRIBUTING.md)
+[![Tests: 82](https://img.shields.io/badge/tests-82%20passing-brightgreen.svg)](#running)
 ```
 
-**6.6 — Structured metadata (YAML frontmatter / JSON-LD): MISSING.** Ready to
-paste at the very top of `README.md` (many crawlers parse leading frontmatter):
-```markdown
----
-title: Cross-Domain-Toolkit
-description: Stdlib-only Python for claim falsification, sensor-fusion
-  calibration, and cascade/tipping-point detection.
-keywords: [falsification, early-warning-signals, tipping-points, sensor-fusion,
-  ai-grounding, spinodal]
-license: MIT
-language: Python
----
-```
-
-**6.7 — Public API one-liner import: PARTIAL.** Package READMEs show imports, but
-the top-level README has no single copy-paste line. Add:
-```markdown
-## Quick import
-```python
-from falsification_ledger import Claim, Ledger
-from multi_substrate_calibration import DeterminacyGate, Substrate, Role
-from cascade_regime_audit import CascadeAudit, SignalReads, H_SPINODAL
-```
-```
-
-**6.8 — Open license clearly marked: ADDRESSED.** `LICENSE` (MIT) is present and
-the README states "MIT licensed (copyright JinnZ2)." Consider adding an SPDX tag
-(`SPDX-License-Identifier: MIT`) to each module header for machine detection.
-
-**6.9 — Anonymous feedback mechanism (issue templates): MISSING.** Ready to paste
-as `.github/ISSUE_TEMPLATE/feedback.md`:
-```markdown
----
-name: Feedback / question
-about: Ask a question, report a domain that didn't map cleanly, or flag a bug
-title: "[feedback] "
-labels: feedback
----
-**What were you trying to do?**
-
-**Which package?** (multi_substrate_calibration / falsification_ledger / cascade_regime_audit)
-
-**What happened vs. what you expected?**
-
-**Minimal example (optional):**
-```
-
-_Optional GitHub Pages site: not present; not required for a repo this size, but
-the package READMEs are already Pages-ready if desired._
+The Python badge says 3.8 per **D2**; change it back to 3.7 only if `symbolic.py`
+is made to accept `ast.Num`. The test-count badge is static — either keep it
+current by hand or drop it; a stale count is worse than none.
 
 ---
+
+## Suggested order of work
+
+1. **D1** — the only defect that raises on a documented configuration.
+2. **D2** — the version floor, since it silently breaks the newest feature on the
+   oldest supported interpreter.
+3. §5.3 topics + description, §5.4 badges, §5.1 `CITATION.cff` — five minutes,
+   all discoverability.
+4. **D3–D8** — small, mechanical, and each has a one-line fix.
+5. §3 tests 1–3, which pin **D1** and **D5** so they cannot come back.
 
 _End of review._
