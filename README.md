@@ -19,6 +19,9 @@ language: Python
 > (spinodal) detection**, portable across physics, ecology, and AI-behavior
 > domains.
 
+📍 **[`STATUS.md`](STATUS.md)** — current state, what's open, and what
+changed recently, in one short page.
+
 Portable, forkable instruments that carry a single method — ground your reads,
 record your refutations, watch for the cascade — across domains. Each package is
 self-contained, **stdlib-only Python 3 (≥ 3.8, no third-party dependencies)**,
