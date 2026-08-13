@@ -2,7 +2,8 @@
 
 Public surface:
     CascadeAudit, SignalReads, AuditResult, Regime, H_SPINODAL, SIGNAL_NAMES
-    slowing_down_from_series, variance_inflation_from_series
+    mappers: slowing_down_from_series, variance_inflation_from_series,
+             lag1_autocorr, normalized_variance, abs_skew, coefficient_of_variation
 """
 
 from .cascade_audit import (
@@ -12,6 +13,12 @@ from .cascade_audit import (
     Regime,
     SIGNAL_NAMES,
     SignalReads,
+)
+from .mappers import (
+    abs_skew,
+    coefficient_of_variation,
+    lag1_autocorr,
+    normalized_variance,
     slowing_down_from_series,
     variance_inflation_from_series,
 )
@@ -25,4 +32,8 @@ __all__ = [
     "SignalReads",
     "slowing_down_from_series",
     "variance_inflation_from_series",
+    "lag1_autocorr",
+    "normalized_variance",
+    "abs_skew",
+    "coefficient_of_variation",
 ]

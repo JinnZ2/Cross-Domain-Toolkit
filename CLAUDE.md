@@ -36,9 +36,9 @@ for the structural point where a system's alternate state stops existing.**
 
 | package | what it is | key entry points |
 |---|---|---|
-| `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (fusion + Lε decision) |
+| `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (Lε decision), `fusion.py` (pure fusion math) |
 | `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker) |
-| `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`) |
+| `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`), `mappers.py` (series→signal helpers) |
 
 ## Commands
 

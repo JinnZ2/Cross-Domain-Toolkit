@@ -36,6 +36,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Sequence, Tuple
 
+from .fusion import contradiction_drain, fuse_ground
 from .substrate import BoundReading, Role
 
 
@@ -59,27 +60,6 @@ class GateResult:
     def gap(self) -> float:
         """How far determinacy sits below the (1 - epsilon) threshold. 0 if met."""
         return max(0.0, (1.0 - self.epsilon) - self.determinacy)
-
-
-def _combine_independent(confidences: Sequence[float]) -> float:
-    """Combine independent bound confidences into one determinacy score.
-
-    Uses the complement-of-product (noisy-OR) rule: each read chips away at the
-    residual doubt. Two independent reads at 0.8 give 1 - 0.2*0.2 = 0.96. This
-    rewards corroboration without ever exceeding 1, and a single weak read never
-    forces determinacy down on its own.
-    """
-    doubt = 1.0
-    for c in confidences:
-        doubt *= (1.0 - max(0.0, min(1.0, c)))
-    return 1.0 - doubt
-
-
-def _weighted_mean(values: Sequence[float], weights: Sequence[float]) -> Optional[float]:
-    wsum = sum(weights)
-    if wsum <= 0.0:
-        return None
-    return sum(v * w for v, w in zip(values, weights)) / wsum
 
 
 class DeterminacyGate:
@@ -145,11 +125,9 @@ class DeterminacyGate:
             )
 
         # --- Fuse the grounding layer (sensorimotor "what is"). ---
-        state = _weighted_mean(
-            [r.value for r in ground],
-            [r.bound_confidence for r in ground],
+        state, ground_determinacy = fuse_ground(
+            [(r.value, r.bound_confidence) for r in ground]
         )
-        ground_determinacy = _combine_independent([r.bound_confidence for r in ground])
 
         # --- Lower-layer constraint: the fused state must be physically possible. ---
         if self.bounds is not None and not (self.bounds[0] <= state <= self.bounds[1]):
@@ -168,22 +146,14 @@ class DeterminacyGate:
             )
 
         # --- Score the prediction layer against the fused ground. ---
-        # A PREDICT read is held *against* the ground, never fused into it. One
-        # that lands within predict_tolerance corroborates the ground and is
-        # allowed to pass without penalty -- but it does NOT add determinacy the
-        # ground did not itself earn (that would launder a forecast into an
-        # observation). One that lands outside drains determinacy in proportion
-        # to its own confidence and its distance.
-        conflict = 0.0
-        for p in predict:
-            dist = abs(p.value - state) / self.predict_tolerance
-            if dist > 1.0:
-                # saturating drain: far, confident contradictions hurt most
-                drain = p.bound_confidence * (1.0 - 1.0 / dist)
-                conflict = max(conflict, drain)
-
-        # Determinacy is set by the grounding layer alone; predictions can only
-        # drain it, never inflate it.
+        # A PREDICT read is held *against* the ground, never fused into it: a read
+        # within predict_tolerance corroborates without penalty, one outside it
+        # drains determinacy (see fusion.contradiction_drain). Predictions can
+        # only ever lower determinacy, never inflate it.
+        conflict = contradiction_drain(
+            [(p.value, p.bound_confidence) for p in predict],
+            state, self.predict_tolerance,
+        )
         determinacy = ground_determinacy * (1.0 - conflict)
 
         threshold = 1.0 - self.epsilon

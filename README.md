@@ -19,7 +19,8 @@ Portable, forkable instruments that carry a single method — ground your reads,
 record your refutations, watch for the cascade — across domains. Each package is
 self-contained, **stdlib-only Python 3 (≥ 3.7, no third-party dependencies)**,
 and designed to be instantiated in a domain the author never anticipated:
-physics, ecology, AI behavior, institutions.
+physics, ecology, AI behavior, institutions. The one method behind all three is
+written up in [`docs/METHOD.md`](docs/METHOD.md).
 
 ## Why this matters
 

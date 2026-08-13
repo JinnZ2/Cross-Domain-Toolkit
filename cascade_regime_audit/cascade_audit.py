@@ -43,7 +43,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional
 
 # The cusp-catastrophe spinodal: |h_eff| beyond this and the minority well is
 # gone (saddle-node). Same constant used in the field-collapse kernel this
@@ -108,43 +108,9 @@ class AuditResult:
         return self.spinodal - abs(self.h_eff)
 
 
-# --- helpers for mapping raw time series onto the six signals ---------------
-
-def _lag1_autocorr(series: Sequence[float]) -> float:
-    n = len(series)
-    if n < 3:
-        return 0.0
-    mean = sum(series) / n
-    num = sum((series[i] - mean) * (series[i - 1] - mean) for i in range(1, n))
-    den = sum((x - mean) ** 2 for x in series)
-    if den == 0:
-        return 0.0
-    return max(0.0, min(1.0, num / den))
-
-
-def _normalized_variance(series: Sequence[float], baseline_var: float) -> float:
-    n = len(series)
-    if n < 2 or baseline_var <= 0:
-        return 0.0
-    mean = sum(series) / n
-    var = sum((x - mean) ** 2 for x in series) / (n - 1)
-    # Map the variance ratio (current / baseline) onto [0, 1] with 1 - 1/ratio:
-    # at baseline (ratio = 1) pressure is 0; it rises as variance inflates and
-    # saturates toward 1 (ratio = 2 -> 0.5, ratio = 4 -> 0.75, ratio = 10 -> 0.9).
-    # This is a smooth, unitless stand-in for the variance-inflation early-warning
-    # signal; swap in a domain-specific calibration if you have one.
-    ratio = var / baseline_var
-    return max(0.0, min(1.0, 1.0 - 1.0 / ratio)) if ratio > 0 else 0.0
-
-
-def slowing_down_from_series(series: Sequence[float]) -> float:
-    """Convenience: map a residual series onto S1 via lag-1 autocorrelation."""
-    return _lag1_autocorr(series)
-
-
-def variance_inflation_from_series(series: Sequence[float], baseline_var: float) -> float:
-    """Convenience: map a residual series onto S2 against a known baseline var."""
-    return _normalized_variance(series, baseline_var)
+# Reference series -> signal mappers now live in mappers.py (import from there or
+# from the package root). The detector core below stays domain-blind: it consumes
+# the six normalized signals and never computes them.
 
 
 class CascadeAudit:
