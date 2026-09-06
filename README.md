@@ -70,6 +70,13 @@ the alternate state has structurally vanished. Instantiate it for model-collapse
 detection, institutional fragility, or your own field with six observables and
 one control parameter.
 
+## Documents
+
+### [`telemetry_vocabulary/`](telemetry_vocabulary/) — a named failure mode in human-AI exchange, with a reproduction protocol
+Markdown only, CC0. Five coined terms, a four-stage mechanism chain, a
+protocol one person can run on any chat model, and the falsifiers that would
+retire the claim. No code; it stands beside the packages, not inside them.
+
 ## Running
 
 Requires Python ≥ 3.8. Most of the toolkit runs on 3.7 (`from __future__ import
