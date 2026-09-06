@@ -42,6 +42,7 @@ for the structural point where a system's alternate state stops existing.**
 | `multi_substrate_calibration/` | intake contract + determinacy gate (Lε) for wiring new sensor substrates | `substrate.py` (contract), `determinacy_gate.py` (Lε decision), `fusion.py` (pure fusion math), `trust.py` (earned reliability from counts) |
 | `falsification_ledger/` | append-only, hash-chained refutation ledger | `ledger.py` (`Claim`/`Prediction`/`Observation`/`Mismatch`/`Ledger`), `symbolic.py` (safe logical-form checker), `merkle.py` (audit certificates), `explorer.py` (residual diagnosis + guarded repair) |
 | `cascade_regime_audit/` | abstract six-signal detector + spinodal threshold | `cascade_audit.py` (`CascadeAudit`, `SignalReads`, `H_SPINODAL`), `mappers.py` (series→signal helpers) |
+| `runner_up_trace/` | runner-up trace / divergence map: record discarded sampling branches, score whether they rejoin | `model.py` (adapter contract), `base_pass.py`/`selection.py`/`trace.py`/`separation.py` (stages A–D), `permute.py` (permutation null), `claims.py` (RU-1..5, N1..5) |
 
 ## Commands
 
@@ -119,6 +120,22 @@ python -m cascade_regime_audit.examples.institutional_fragility
   rising when contradicted = sealing), never disagreement itself — a fusion
   gate's conflict score is the `contradiction_level` input to
   `mappers.sealing_under_contradiction`, not the signal.
+
+- **`runner_up_trace`** measures the projection step: at high-entropy positions
+  of a greedy pass it forces the rank-2 and rank-3 tokens, continues greedily,
+  and scores whether each branch rejoins the base (`resync_D`) and how far it
+  drifts (`div_D`) over a swept distance D. Three things are load-bearing.
+  The core never imports a model: `model.ModelAdapter` is the contract and
+  adapters (synthetic, llama.cpp HTTP) live in `examples/`. The output row
+  carries **exactly** `SEPARATION_FIELDS` and `check_contract` refuses a label,
+  category, type, or frame field, because a pre-declared category is the frame
+  re-entering at intake. Every free parameter (D sweep, `MIN_MATCH`, `SLACK`,
+  the `claims.PARAMS` thresholds) is declared once and echoed into the report;
+  the permutation null is a **second output filed beside the real one**, never
+  a gate. Selection is a declared rule (top-N entropy, ties by position, plus a
+  seeded random control for the RU-2 base rate); do not add content-based or
+  hand-picked selection. The synthetic model is plumbing: findings on it are
+  findings about the instrument.
 
 - **Cross-package wiring stays out of the core.** The three packages are
   standalone and none imports another; the seams are deliberately typed in plain

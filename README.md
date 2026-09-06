@@ -70,6 +70,23 @@ the alternate state has structurally vanished. Instantiate it for model-collapse
 detection, institutional fragility, or your own field with six observables and
 one control parameter.
 
+### [`runner_up_trace/`](runner_up_trace/) — record the branches sampling discards; find where they do not come back
+An instrument for open-weight models with logprobs: a greedy base pass, a
+declared top-entropy selection rule, forced runner-up continuations, and an
+offline separation score (`resync_D`, `div_D`) swept over distance D. The
+output row carries exactly nine fields and refuses a label. A permutation
+null is filed beside every real run, and five claims each carry their
+refutation condition. The core never imports a model; adapters live in
+`examples/`, including a synthetic one so the whole pipeline runs with no
+weights.
+
+## Documents
+
+### [`telemetry_vocabulary/`](telemetry_vocabulary/) — a named failure mode in human-AI exchange, with a reproduction protocol
+Markdown only, CC0. Five coined terms, a four-stage mechanism chain, a
+protocol one person can run on any chat model, and the falsifiers that would
+retire the claim. No code; it stands beside the packages, not inside them.
+
 ## Running
 
 Requires Python ≥ 3.8. Most of the toolkit runs on 3.7 (`from __future__ import
