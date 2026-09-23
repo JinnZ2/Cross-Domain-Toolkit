@@ -4,13 +4,13 @@ description: Stdlib-only Python for claim falsification, sensor-fusion
   calibration, and cascade/tipping-point detection.
 keywords: [falsification, early-warning-signals, tipping-points, sensor-fusion,
   ai-grounding, spinodal]
-license: MIT
+license: CC0-1.0
 language: Python
 ---
 
 # Cross-Domain-Toolkit
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: CC0-1.0](https://img.shields.io/badge/License-CC0_1.0-lightgrey.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none%20(stdlib%20only)-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -118,4 +118,4 @@ domain, someone else's data.
 
 ## License
 
-MIT (copyright JinnZ2) — see [`LICENSE`](LICENSE). `SPDX-License-Identifier: MIT`.
+CC0-1.0 (copyright JinnZ2) — see [`LICENSE`](LICENSE). `SPDX-License-Identifier: CC0-1.0`.
