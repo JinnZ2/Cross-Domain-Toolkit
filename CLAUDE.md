@@ -169,3 +169,12 @@ Without this, the first push of a new branch
 fails the tracking-ref check even when the
 commit landed.
 <!-- /clone-refspec-note v1.1 -->
+
+
+## License and scope
+
+Owner-authored work in this repository is dedicated under **CC0 1.0 Universal**;
+see [`LICENSE`](LICENSE). Existing package-local CC0 declarations remain in place.
+[`LICENSE_HISTORY.md`](LICENSE_HISTORY.md) retains the complete prior MIT text,
+historical mixed statements, and the scope/provenance record; it does not alter
+rights in any third-party material.
