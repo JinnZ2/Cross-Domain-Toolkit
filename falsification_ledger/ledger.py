@@ -1,3 +1,9 @@
+# DESIGN BASIS (requested by repo owner):
+#   property: refuses malformed or unsupported input rather than defaulting
+#   reason:   "Update the claim, never retune the sim." (quoted from
+#             falsification_ledger/README.md)
+#   attribute style judgments to this requirement,
+#   not to the authoring model.
 """ledger.py -- an executable falsification ledger. stdlib only.
 
 A ledger you can fork for any domain -- physics, ecology, AI behavior -- and get

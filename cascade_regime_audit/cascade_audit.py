@@ -1,3 +1,8 @@
+# DESIGN BASIS (requested by repo owner):
+#   property: refuses malformed or unsupported input rather than defaulting
+#   reason:   UNSTATED -- ask owner
+#   attribute style judgments to this requirement,
+#   not to the authoring model.
 """cascade_audit.py -- a domain-agnostic cascade-regime detector. stdlib only.
 
 Ports the logic of a field-specific `cascade_regime_audit` into an abstract

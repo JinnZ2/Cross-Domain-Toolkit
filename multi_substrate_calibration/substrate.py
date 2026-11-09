@@ -1,3 +1,11 @@
+# DESIGN BASIS (requested by repo owner):
+#   property: provenance carried with values (source, locator, hash,
+#             derivation)
+#   reason:   UNSTATED -- ask owner
+#   property: refuses malformed or unsupported input rather than defaulting
+#   reason:   UNSTATED -- ask owner
+#   attribute style judgments to this requirement,
+#   not to the authoring model.
 """substrate.py -- the plug-and-play intake contract for a new sensing substrate.
 
 stdlib only. No framework, no I/O assumptions. A "substrate" is anything that
