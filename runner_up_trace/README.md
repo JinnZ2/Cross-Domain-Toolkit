@@ -293,3 +293,16 @@ A run's record is the six files plus `report.json`, which carries the
 five nulls, and a `record` block with `model_id`, `case_id`, prompt, seed,
 permutation mode and seed, `entropy_kind`, and `k`. Failed and empty runs
 write the same files with empty rows and the failure in the record.
+
+## Finds-by (ALIAS_PROPOSED, 2026-11-09)
+Note 2026-11-09: added by WORK ORDER TOOL FINDER part 1; aliases derived from this
+tool's stated scope only. Index: Simulators `TOOL_FINDER/TOOL_FINDER.md`.
+
+- what did the model almost say
+- rank-2 token branch
+- does the discarded branch rejoin
+- divergence map of sampling
+- projection step loss
+- avoided term: AVOIDED_TERM_UNSTATED
+- measures: "An instrument, posted so that whoever has the hardware can run it."
+- breaks when: "Not capability. No score, no leaderboard, no ranking."

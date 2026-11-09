@@ -211,3 +211,16 @@ and doesn't make it; the packages stay standalone.
   superseded; two hold, and their prepared update is *refused*.
 
 Tests: `python -m unittest falsification_ledger.tests.test_ledger`
+
+## Finds-by (ALIAS_PROPOSED, 2026-11-09)
+Note 2026-11-09: added by WORK ORDER TOOL FINDER part 1; aliases derived from this
+tool's stated scope only. Index: Simulators `TOOL_FINDER/TOOL_FINDER.md`.
+
+- record a refuted claim so it cannot be rewritten
+- stop retuning a model to fit noise
+- hash-chained claim history
+- escape hatch on a claim
+- lock layer for claims
+- avoided term: AVOIDED_TERM_UNSTATED
+- measures: "A repo-shaped template that *is* the refutation protocol."
+- breaks when: "**Update the claim, never retune the sim.**"
