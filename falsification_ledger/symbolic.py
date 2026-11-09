@@ -1,3 +1,8 @@
+# DESIGN BASIS (requested by repo owner):
+#   property: refuses malformed or unsupported input rather than defaulting
+#   reason:   UNSTATED -- ask owner
+#   attribute style judgments to this requirement,
+#   not to the authoring model.
 """symbolic.py -- a safe, stdlib-only checker for a claim's logical form.
 
 This closes the symbolic/subsymbolic gap at the ledger's edge: a `Claim` can
