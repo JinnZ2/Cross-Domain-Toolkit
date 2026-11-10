@@ -1,5 +1,7 @@
 > Before reading or editing anything here, read READ_ME_THIS_WAY.md.
 > Mismatches, dead ends and odd names in this repo are kept on purpose.
+> Looking for a tool by what's going wrong?
+> See TOOL_FINDER: https://github.com/JinnZ2/Simulators/blob/main/TOOL_FINDER/TOOL_FINDER.md
 
 ---
 title: Cross-Domain-Toolkit

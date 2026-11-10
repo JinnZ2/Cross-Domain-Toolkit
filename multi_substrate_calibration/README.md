@@ -186,3 +186,16 @@ result = gate.evaluate([probe_a.bound_read(), probe_b.bound_read()])
   forecast draining determinacy.
 - `tests/test_multi_substrate.py`, `tests/test_fusion.py`, `tests/test_trust.py`,
   `tests/test_examples.py` — `python -m unittest discover -p 'test_*.py'`
+
+## Finds-by (ALIAS_PROPOSED, 2026-11-09)
+Note 2026-11-09: added by WORK ORDER TOOL FINDER part 1; aliases derived from this
+tool's stated scope only. Index: Simulators `TOOL_FINDER/TOOL_FINDER.md`.
+
+- combine readings from different sensors
+- sensor fusion with earned trust
+- duplicate sensor counted as corroboration
+- prediction contradicting ground reading
+- per-reading record with confidence and units
+- avoided term: AVOIDED_TERM_UNSTATED
+- measures: "A published spec for wiring a **new sensing substrate** into a determinacy gate without reverse-engineering the gate."
+- breaks when: "An unproven substrate (`reliability → 0`) **cannot dominate"

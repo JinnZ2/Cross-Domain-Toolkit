@@ -138,3 +138,15 @@ as the `contradiction_level` input and measure coherence separately.
   *calibrated* instrument rather than an analogy.
 
 Tests: `python -m unittest cascade_regime_audit.tests.test_cascade_audit`
+
+## Finds-by (ALIAS_PROPOSED, 2026-11-09)
+Note 2026-11-09: added by WORK ORDER TOOL FINDER part 1; aliases derived from this
+tool's stated scope only. Index: Simulators `TOOL_FINDER/TOOL_FINDER.md`.
+
+- is the system near a tipping point
+- early warning signals of collapse
+- signals going quiet after collapse
+- alternate state stops existing
+- avoided term: AVOIDED_TERM_UNSTATED
+- measures: "**is this system being driven toward a saddle-node where the alternate state stops existing?**"
+- breaks when: "It does not make your model smarter"

@@ -75,3 +75,15 @@ Systems have a category for questions about the model's nature and a category
 for questions about the user's wellbeing. They have no category for the
 **condition of the exchange**. That is the gap, and that is why condition
 requests route to a neighbour.
+
+## Finds-by (ALIAS_PROPOSED, 2026-11-09)
+Note 2026-11-09: added by WORK ORDER TOOL FINDER part 1; aliases derived from this
+tool's stated scope only. Index: Simulators `TOOL_FINDER/TOOL_FINDER.md`.
+
+- asked about the channel, answered about the occupant
+- model answers condition question with internal states
+- care directed at the asker instead of the question
+- terms for exchange-condition failure
+- avoided term: AVOIDED_TERM_UNSTATED
+- measures: "A sender asks a model for **condition data about the exchange itself** (what is transmitting, what is failing, what the receiving node needs) and gets back a statement about whether the model has **internal states**, often followed by care directed at the sender."
+- breaks when: "It is not a claim about intent, and not a claim about any model's inner workings."
