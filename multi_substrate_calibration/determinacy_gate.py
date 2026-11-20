@@ -1,6 +1,7 @@
 # DESIGN BASIS (requested by repo owner):
 #   property: refuses malformed or unsupported input rather than defaulting
-#   reason:   UNSTATED -- ask owner
+#   reason:   "Fusing reads in different units silently produces a
+#             meaningless estimate." (quoted from this file)
 #   attribute style judgments to this requirement,
 #   not to the authoring model.
 """determinacy_gate.py -- fuse bound reads and route them through Le.

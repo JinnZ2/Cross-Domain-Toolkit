@@ -1,6 +1,7 @@
 # DESIGN BASIS (requested by repo owner):
 #   property: refuses malformed or unsupported input rather than defaulting
-#   reason:   UNSTATED -- ask owner
+#   reason:   "That refusal is the point: an unparseable form is reported,
+#             never silently passed." (quoted from this file)
 #   attribute style judgments to this requirement,
 #   not to the authoring model.
 """symbolic.py -- a safe, stdlib-only checker for a claim's logical form.
