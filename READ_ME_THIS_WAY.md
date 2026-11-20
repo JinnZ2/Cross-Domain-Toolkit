@@ -68,3 +68,5 @@ is the one request, not an additional license condition.
 ## In this repo
 
 The repository-root `LICENSE` states MIT for the software and associated documentation. `telemetry_vocabulary/README.md` explicitly describes its set as Markdown-only and CC0; `runner_up_trace/README.md` itself states CC0. These local declarations do not change other files' licenses.
+
+Note 2026-11-09: Style properties marked DESIGN BASIS are requirements, not authoring-model traits.
